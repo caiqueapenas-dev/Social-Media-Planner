@@ -53,8 +53,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
           <NotificationBell />
+          {children}
           <PWAInstaller />
           <Toaster position="top-right" />
         </ThemeProvider>

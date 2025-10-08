@@ -12,16 +12,6 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Admin profiles table
-CREATE TABLE IF NOT EXISTS public.admin_profiles (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
-  company_name TEXT,
-  avatar_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
 -- Clients table
 CREATE TABLE IF NOT EXISTS public.clients (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -41,22 +31,13 @@ CREATE TABLE IF NOT EXISTS public.posts (
   client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE NOT NULL,
   caption TEXT NOT NULL,
   scheduled_date TIMESTAMPTZ NOT NULL,
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'approved', 'rejected', 'published')),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'approved', 'rejected', 'published', 'refactor')),
   post_type TEXT NOT NULL CHECK (post_type IN ('photo', 'carousel', 'reel', 'story')),
   platforms TEXT[] NOT NULL,
   media_urls TEXT[] NOT NULL,
   created_by UUID REFERENCES public.users(id) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Edit history table
-CREATE TABLE IF NOT EXISTS public.edit_history (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
-  edited_by UUID REFERENCES public.users(id) NOT NULL,
-  changes JSONB NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Caption templates table
@@ -101,13 +82,10 @@ CREATE TABLE IF NOT EXISTS public.insights (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Post comments table
-CREATE TABLE IF NOT EXISTS public.post_comments (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES public.users(id) NOT NULL,
-  content TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+-- User Insight Views table
+CREATE TABLE IF NOT EXISTS public.user_insight_views (
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE PRIMARY KEY,
+  last_viewed_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 -- Notifications table
@@ -121,31 +99,19 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Drafts table (for auto-save)
-CREATE TABLE IF NOT EXISTS public.drafts (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-  client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE,
-  data JSONB NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, client_id)
-);
-
--- User Insight Views table
-CREATE TABLE IF NOT EXISTS public.user_insight_views (
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE PRIMARY KEY,
-  last_viewed_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
 -- RLS
 ALTER TABLE public.user_insight_views ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own view timestamps" ON public.user_insight_views;
 CREATE POLICY "Users can manage their own view timestamps" ON public.user_insight_views
   FOR ALL USING (auth.uid() = user_id);
 
--- Other RLS policies... (truncated for brevity, ensure they are in your file)
+DROP POLICY IF EXISTS "Authenticated users can create notifications" ON public.notifications;
+CREATE POLICY "Authenticated users can create notifications" ON public.notifications
+  FOR INSERT TO authenticated WITH CHECK (true);
+  
+-- (Ensure other RLS policies are present)
 
--- Database Function and Trigger for Insight Notifications
+-- FUNCTION & TRIGGER FOR INSIGHTS
 CREATE OR REPLACE FUNCTION public.handle_new_insight_notification()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -154,70 +120,58 @@ DECLARE
   client_name TEXT;
   client_user_id UUID;
   admin_record RECORD;
-  client_last_viewed TIMESTAMPTZ;
-  admin_last_viewed TIMESTAMPTZ;
 BEGIN
-  -- Get creator info
   SELECT role, full_name INTO creator_role, creator_name FROM public.users WHERE id = NEW.created_by;
-
   IF creator_role = 'client' THEN
-    -- Client created an insight, notify all admins who haven't seen it
     SELECT name INTO client_name FROM public.clients WHERE id = NEW.client_id;
     FOR admin_record IN SELECT id FROM public.users WHERE role = 'admin' LOOP
-      SELECT last_viewed_at INTO admin_last_viewed FROM public.user_insight_views WHERE user_id = admin_record.id;
-      
-      IF admin_last_viewed IS NULL OR admin_last_viewed < NEW.created_at THEN
-        INSERT INTO public.notifications (user_id, title, message, link)
-        VALUES (admin_record.id, 'Nova Ideia de Cliente', client_name || ' adicionou uma nova ideia.', '/admin/insights');
-      END IF;
+      INSERT INTO public.notifications (user_id, title, message, link)
+      VALUES (admin_record.id, 'Nova Ideia de Cliente', client_name || ' adicionou uma nova ideia.', '/admin/insights');
     END LOOP;
-
   ELSIF creator_role = 'admin' THEN
-    -- Admin created an insight, notify the client if they haven't seen it
     SELECT user_id INTO client_user_id FROM public.clients WHERE id = NEW.client_id;
     IF client_user_id IS NOT NULL THEN
-      SELECT last_viewed_at INTO client_last_viewed FROM public.user_insight_views WHERE user_id = client_user_id;
-
-      IF client_last_viewed IS NULL OR client_last_viewed < NEW.created_at THEN
-        INSERT INTO public.notifications (user_id, title, message, link)
-        VALUES (client_user_id, 'Nova Ideia da Agência', creator_name || ' compartilhou uma nova ideia.', '/client/insights');
-      END IF;
+      INSERT INTO public.notifications (user_id, title, message, link)
+      VALUES (client_user_id, 'Nova Ideia da Agência', creator_name || ' compartilhou uma nova ideia.', '/client/insights');
     END IF;
   END IF;
-
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger
 DROP TRIGGER IF EXISTS on_insight_created_send_notification ON public.insights;
 CREATE TRIGGER on_insight_created_send_notification
   AFTER INSERT ON public.insights
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_insight_notification();
 
--- Functions and Triggers
-
--- Function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+-- FUNCTION & TRIGGER FOR POST STATUS
+CREATE OR REPLACE FUNCTION public.handle_post_status_change()
 RETURNS TRIGGER AS $$
+DECLARE
+  client_user_id UUID;
+  client_name TEXT;
+  admin_record RECORD;
 BEGIN
-  NEW.updated_at = NOW();
+  SELECT user_id, name INTO client_user_id, client_name FROM public.clients WHERE id = NEW.client_id;
+  IF OLD.status <> 'refactor' AND NEW.status = 'refactor' THEN
+    FOR admin_record IN SELECT id FROM public.users WHERE role = 'admin' LOOP
+      INSERT INTO public.notifications (user_id, title, message, link)
+      VALUES (admin_record.id, 'Pedido de Refação', client_name || ' solicitou refação em um post.', '/admin/dashboard');
+    END LOOP;
+  END IF;
+  IF OLD.status = 'refactor' AND NEW.status = 'pending' THEN
+    IF client_user_id IS NOT NULL THEN
+      INSERT INTO public.notifications (user_id, title, message, link)
+      VALUES (client_user_id, 'Post Reenviado para Análise', 'Um post foi alterado e está pronto para sua revisão.', '/client/dashboard');
+    END IF;
+  END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Triggers for updated_at
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_admin_profiles_updated_at BEFORE UPDATE ON public.admin_profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON public.clients
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_posts_updated_at BEFORE UPDATE ON public.posts
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_drafts_updated_at BEFORE UPDATE ON public.drafts
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS on_post_status_change_send_notification ON public.posts;
+CREATE TRIGGER on_post_status_change_send_notification
+  AFTER UPDATE OF status ON public.posts
+  FOR EACH ROW
+  WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION public.handle_post_status_change();

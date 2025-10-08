@@ -1,9 +1,9 @@
 export type UserRole = "admin" | "client";
 
-export type PostStatus = "draft" | "pending" | "approved" | "rejected" | "published";
+export type PostStatus = "draft" | "pending" | "approved" | "rejected" | "published" | "refactor";
 
+// ... (resto do arquivo sem alterações)
 export type PostType = "photo" | "carousel" | "reel" | "story";
-
 export type Platform = "instagram" | "facebook";
 
 export interface User {

@@ -87,7 +87,7 @@ export function NotificationBell() {
           variant="ghost"
           size="icon"
           onClick={() => setShowDropdown(!showDropdown)}
-          className="relative rounded-full hover:bg-accent"
+          className="relative bg-card rounded-full shadow-md hover:bg-accent"
         >
           <Bell className="h-5 w-5" />
           {hasUnread && (
