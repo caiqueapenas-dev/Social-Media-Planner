@@ -17,18 +17,22 @@ interface ClientCalendarDayProps {
   onPostUpdate: () => void;
 }
 
-export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCalendarDayProps) {
+export function ClientCalendarDay({
+  posts,
+  specialDate,
+  onPostUpdate,
+}: ClientCalendarDayProps) {
   const supabase = createClient();
   const { user } = useAuthStore();
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
-  
+
   const hasContent = posts.length > 0 || specialDate;
   if (!hasContent) return null;
 
-  const pendingCount = posts.filter(p => p.status === "pending").length;
-  const approvedCount = posts.filter(p => p.status === "approved").length;
+  const pendingCount = posts.filter((p) => p.status === "pending").length;
+  const approvedCount = posts.filter((p) => p.status === "approved").length;
   const hasSpecialDate = !!specialDate;
 
   const handleApprove = async (post: Post) => {
@@ -57,35 +61,29 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
     onPostUpdate();
   };
 
-  const handleReject = async (post: Post, feedback: string) => {
-    const { error } = await supabase
-      .from("posts")
-      .update({ status: "rejected" })
-      .eq("id", post.id);
-
-    if (error) {
-      toast.error("Erro ao reprovar post");
+  const handleRequestAlteration = async (post: Post, alteration: string) => {
+    if (!alteration.trim()) {
+      toast.error("Por favor, descreva a alteração necessária.");
       return;
     }
 
-    await supabase.from("edit_history").insert({
-      post_id: post.id,
-      edited_by: user?.id,
-      changes: { status: { from: post.status, to: "rejected" }, feedback },
-    });
+    const { error } = await supabase
+      .from("posts")
+      .update({ status: "refactor" })
+      .eq("id", post.id);
 
-    if (feedback) {
-      await supabase.from("post_comments").insert({
-        post_id: post.id,
-        user_id: user?.id,
-        content: feedback,
-      });
+    if (error) {
+      toast.error("Erro ao solicitar alteração.");
+      return;
     }
 
-    const { notifyPostRejected } = await import("@/lib/notifications");
-    await notifyPostRejected(post.id, post.client_id);
+    await supabase.from("post_comments").insert({
+      post_id: post.id,
+      user_id: user?.id,
+      content: `SOLICITAÇÃO DE ALTERAÇÃO: ${alteration}`,
+    });
 
-    toast.success("Post reprovado!");
+    toast.success("Alteração solicitada com sucesso!");
     setIsPostModalOpen(false);
     setSelectedPost(null);
     onPostUpdate();
@@ -128,10 +126,16 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
             </div>
           )}
           {pendingCount > 0 && (
-            <div className="w-2 h-2 rounded-full bg-yellow-500" title={`${pendingCount} pendente(s)`} />
+            <div
+              className="w-2 h-2 rounded-full bg-yellow-500"
+              title={`${pendingCount} pendente(s)`}
+            />
           )}
           {approvedCount > 0 && (
-            <div className="w-2 h-2 rounded-full bg-green-500" title={`${approvedCount} aprovado(s)`} />
+            <div
+              className="w-2 h-2 rounded-full bg-green-500"
+              title={`${approvedCount} aprovado(s)`}
+            />
           )}
         </div>
       </div>
@@ -190,7 +194,11 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       {getStatusBadge(post.status)}
-                      <div className={`w-2 h-2 rounded-full ${getStatusColor(post.status)}`} />
+                      <div
+                        className={`w-2 h-2 rounded-full ${getStatusColor(
+                          post.status
+                        )}`}
+                      />
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                       {post.caption}
@@ -213,7 +221,7 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
 
       {/* Post Detail Modal */}
       {selectedPost && (
-         <PostViewModal
+        <PostViewModal
           post={selectedPost}
           isOpen={isPostModalOpen}
           onClose={() => {
@@ -221,7 +229,7 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
             setSelectedPost(null);
           }}
           onApprove={handleApprove}
-          onReject={handleReject}
+          onrefactor={handleRequestAlteration}
           showEditButton={false}
         />
       )}

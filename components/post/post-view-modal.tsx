@@ -8,7 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { PlatformButton } from "@/components/ui/platform-button";
 import { formatDateTime } from "@/lib/utils";
-import { Edit, Calendar, Image as ImageIcon, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import {
+  Edit,
+  Calendar,
+  Image as ImageIcon,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { PostComments } from "@/components/post/post-comments";
 
 interface PostViewModalProps {
   post: Post;
@@ -16,8 +26,8 @@ interface PostViewModalProps {
   onClose: () => void;
   onEdit?: () => void;
   onApprove?: (post: Post) => void;
-  onReject?: (post: Post, feedback: string) => void;
-  onRefactor?: (post: Post, feedback: string) => void;
+  onReject?: (post: Post, feedback: string) => void; // Manter para o admin
+  onrefactor?: (post: Post, feedback: string) => void;
   showEditButton?: boolean;
 }
 
@@ -28,10 +38,21 @@ export function PostViewModal({
   onEdit,
   onApprove,
   onReject,
-  onRefactor,
+  onrefactor,
   showEditButton = true,
 }: PostViewModalProps) {
   const [feedback, setFeedback] = useState("");
+  const [currentImage, setCurrentImage] = useState(0);
+
+  const nextImage = () => {
+    setCurrentImage((prev) => (prev + 1) % post.media_urls.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImage(
+      (prev) => (prev - 1 + post.media_urls.length) % post.media_urls.length
+    );
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; label: string }> = {
@@ -47,26 +68,28 @@ export function PostViewModal({
   };
 
   const getTypeLabel = (type: string) => {
-    const types: Record<string, string> = { photo: "Foto", carousel: "Carrossel", reel: "Reels", story: "Story" };
+    const types: Record<string, string> = {
+      photo: "Foto",
+      carousel: "Carrossel",
+      reel: "Reels",
+      story: "Story",
+    };
     return types[type] || type;
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Visualizar Post"
-      size="lg"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title="Visualizar Post" size="lg">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {post.client && (
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-cover bg-center"
-                style={{ 
+                style={{
                   backgroundColor: post.client.brand_color,
-                  backgroundImage: post.client.avatar_url ? `url(${post.client.avatar_url})` : 'none'
+                  backgroundImage: post.client.avatar_url
+                    ? `url(${post.client.avatar_url})`
+                    : "none",
                 }}
               >
                 {!post.client.avatar_url && post.client.name[0]}
@@ -90,24 +113,46 @@ export function PostViewModal({
             <Label className="flex items-center gap-2 mb-2">
               <ImageIcon className="h-4 w-4" /> Mídia ({post.media_urls.length})
             </Label>
-            <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
-              {post.media_urls.map((url, i) => (
-                <div key={i} className="relative aspect-square">
-                  <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover rounded-lg" />
-                  {post.media_urls.length > 1 && (
-                    <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                      {i + 1}/{post.media_urls.length}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="relative">
+              <div className="flex items-center justify-center bg-muted/50 rounded-lg overflow-hidden">
+                <img
+                  src={post.media_urls[currentImage]}
+                  alt={`Media ${currentImage + 1}`}
+                  className="w-auto h-auto max-w-full max-h-[60vh] object-contain rounded-lg"
+                />
+              </div>
+              {post.media_urls.length > 1 && (
+                <>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    className="absolute top-1/2 left-2 -translate-y-1/2 h-8 w-8 rounded-full bg-primary/80 hover:bg-primary"
+                    onClick={prevImage}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    className="absolute top-1/2 right-2 -translate-y-1/2 h-8 w-8 rounded-full bg-primary/80 hover:bg-primary"
+                    onClick={nextImage}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+                    {currentImage + 1} / {post.media_urls.length}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
 
         <div>
           <Label className="mb-2 block">Legenda</Label>
-          <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm max-h-40 overflow-y-auto">{post.caption}</div>
+          <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm max-h-40 overflow-y-auto">
+            {post.caption}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -118,7 +163,8 @@ export function PostViewModal({
           <div>
             <Label className="text-muted-foreground">Agendado para</Label>
             <p className="font-medium mt-1 flex items-center gap-1">
-              <Calendar className="h-3 w-3" />{formatDateTime(post.scheduled_date)}
+              <Calendar className="h-3 w-3" />
+              {formatDateTime(post.scheduled_date)}
             </p>
           </div>
         </div>
@@ -126,24 +172,78 @@ export function PostViewModal({
         <div>
           <Label className="mb-2 block">Plataformas</Label>
           <div className="flex gap-2">
-            <PlatformButton platform="instagram" selected={post.platforms.includes("instagram")} onToggle={() => {}} readOnly />
-            <PlatformButton platform="facebook" selected={post.platforms.includes("facebook")} onToggle={() => {}} readOnly />
+            <PlatformButton
+              platform="instagram"
+              selected={post.platforms.includes("instagram")}
+              onToggle={() => {}}
+              readOnly
+            />
+            <PlatformButton
+              platform="facebook"
+              selected={post.platforms.includes("facebook")}
+              onToggle={() => {}}
+              readOnly
+            />
           </div>
         </div>
 
-        {post.status === 'pending' && (onApprove || onReject || onRefactor) && (
+        {post.status === "pending" && (onApprove || onReject || onrefactor) && (
           <div className="space-y-4 pt-4 border-t">
             <div>
-              <h3 className="font-medium mb-2">Deixar um Feedback (opcional)</h3>
-              <Textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Adicione comentários ou sugestões de alteração..." rows={3}/>
+              <h3 className="font-medium mb-2">
+                {onrefactor
+                  ? "Descreva a alteração necessária *"
+                  : "Deixar um Feedback (opcional)"}
+              </h3>
+              <Textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder={
+                  onrefactor
+                    ? "Ex: Mudar a cor de fundo para azul, ajustar o texto da primeira imagem..."
+                    : "Adicione comentários ou sugestões..."
+                }
+                rows={3}
+              />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {onReject && <Button variant="destructive" onClick={() => onReject(post, feedback)} className="gap-2"><XCircle className="h-4 w-4" />Reprovar</Button>}
-              {onRefactor && <Button variant="outline" onClick={() => onRefactor(post, feedback)} className="gap-2"><RefreshCw className="h-4 w-4" />Pedir Refação</Button>}
-              {onApprove && <Button onClick={() => onApprove(post)} className="gap-2 col-span-1"><CheckCircle className="h-4 w-4" />Aprovar</Button>}
+            <div className="flex flex-wrap gap-2">
+              {onApprove && (
+                <Button
+                  onClick={() => onApprove(post)}
+                  className="gap-2 flex-1"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Aprovar
+                </Button>
+              )}
+              {onrefactor && (
+                <Button
+                  variant="outline"
+                  onClick={() => onrefactor(post, feedback)}
+                  className="gap-2 flex-1"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Solicitar Alteração
+                </Button>
+              )}
+              {onReject && (
+                <Button
+                  variant="destructive"
+                  onClick={() => onReject(post, feedback)}
+                  className="gap-2 flex-1"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Reprovar
+                </Button>
+              )}
             </div>
           </div>
         )}
+
+        {/* Aba de Alterações */}
+        <div className="pt-4 border-t">
+          <PostComments postId={post.id} />
+        </div>
       </div>
     </Modal>
   );

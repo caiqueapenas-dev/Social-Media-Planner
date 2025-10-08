@@ -20,6 +20,11 @@ export default function ClientDashboard() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [visiblePosts, setVisiblePosts] = useState({ pending: 3, approved: 3 });
+
+  const showMore = (section: keyof typeof visiblePosts) => {
+    setVisiblePosts((prev) => ({ ...prev, [section]: prev[section] + 3 }));
+  };
 
   useEffect(() => {
     loadUser();
@@ -32,15 +37,17 @@ export default function ClientDashboard() {
   }, [clientId]);
 
   const loadUser = async () => {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
     if (authUser) {
       const { data: userData } = await supabase
         .from("users")
         .select("*")
         .eq("id", authUser.id)
         .single();
-      
+
       if (userData) {
         setUser(userData);
 
@@ -74,7 +81,7 @@ export default function ClientDashboard() {
   const pendingPosts = posts.filter((p) => p.status === "pending");
   const approvedPosts = posts.filter(
     (p) => p.status === "approved" && new Date(p.scheduled_date) > new Date()
-  ).slice(0, 5);
+  );
 
   const handleApprove = async (post: Post) => {
     const { error } = await supabase
@@ -101,35 +108,32 @@ export default function ClientDashboard() {
     setIsReviewModalOpen(false);
   };
 
-  const handleReject = async (post: Post, feedback: string) => {
-    const { error } = await supabase
-      .from("posts")
-      .update({ status: "rejected" })
-      .eq("id", post.id);
-
-    if (error) {
-      toast.error("Erro ao reprovar post");
+  const handleRequestAlteration = async (post: Post, alteration: string) => {
+    if (!alteration.trim()) {
+      toast.error("Por favor, descreva a alteração necessária.");
       return;
     }
 
-    await supabase.from("edit_history").insert({
-      post_id: post.id,
-      edited_by: user?.id,
-      changes: { status: { from: post.status, to: "rejected" }, feedback },
-    });
+    const { error } = await supabase
+      .from("posts")
+      .update({ status: "refactor" })
+      .eq("id", post.id);
 
-    if (feedback) {
-      await supabase.from("post_comments").insert({
-        post_id: post.id,
-        user_id: user?.id,
-        content: feedback,
-      });
+    if (error) {
+      toast.error("Erro ao solicitar alteração.");
+      return;
     }
 
-    const { notifyPostRejected } = await import("@/lib/notifications");
-    await notifyPostRejected(post.id, post.client_id);
+    // Adiciona a solicitação como um comentário
+    await supabase.from("post_comments").insert({
+      post_id: post.id,
+      user_id: user?.id,
+      content: `SOLICITAÇÃO DE ALTERAÇÃO: ${alteration}`,
+    });
 
-    toast.success("Post reprovado. Feedback enviado!");
+    // O trigger no Supabase já cuida da notificação para o admin.
+
+    toast.success("Alteração solicitada com sucesso!");
     loadPosts();
     setIsReviewModalOpen(false);
   };
@@ -153,9 +157,7 @@ export default function ClientDashboard() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Bem-vindo, {user?.full_name}!
-          </p>
+          <p className="text-muted-foreground">Bem-vindo, {user?.full_name}!</p>
         </div>
 
         {/* Stats */}
@@ -184,9 +186,7 @@ export default function ClientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{approvedPosts.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Posts aprovados
-              </p>
+              <p className="text-xs text-muted-foreground">Posts aprovados</p>
             </CardContent>
           </Card>
 
@@ -199,9 +199,7 @@ export default function ClientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{posts.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Todos os posts
-              </p>
+              <p className="text-xs text-muted-foreground">Todos os posts</p>
             </CardContent>
           </Card>
         </div>
@@ -217,7 +215,7 @@ export default function ClientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {pendingPosts.map((post) => (
+                {pendingPosts.slice(0, visiblePosts.pending).map((post) => (
                   <div
                     key={post.id}
                     className="flex items-start gap-4 p-4 rounded-lg border"
@@ -236,7 +234,9 @@ export default function ClientDashboard() {
                           {formatDateTime(post.scheduled_date)}
                         </span>
                       </div>
-                      <p className="text-sm mb-3 line-clamp-3">{post.caption}</p>
+                      <p className="text-sm mb-3 line-clamp-3">
+                        {post.caption}
+                      </p>
                       <Button
                         size="sm"
                         onClick={() => {
@@ -252,6 +252,13 @@ export default function ClientDashboard() {
                   </div>
                 ))}
               </div>
+              {pendingPosts.length > visiblePosts.pending && (
+                <div className="text-center mt-4">
+                  <Button variant="outline" onClick={() => showMore("pending")}>
+                    Ver mais
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -271,7 +278,7 @@ export default function ClientDashboard() {
               </p>
             ) : (
               <div className="space-y-4">
-                {approvedPosts.map((post) => (
+                {approvedPosts.slice(0, visiblePosts.approved).map((post) => (
                   <div
                     key={post.id}
                     className="flex items-start gap-4 p-4 rounded-lg border"
@@ -302,6 +309,13 @@ export default function ClientDashboard() {
                 ))}
               </div>
             )}
+            {approvedPosts.length > visiblePosts.approved && (
+              <div className="text-center mt-4">
+                <Button variant="outline" onClick={() => showMore("approved")}>
+                  Ver mais
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -316,7 +330,7 @@ export default function ClientDashboard() {
             setSelectedPost(null);
           }}
           onApprove={() => handleApprove(selectedPost)}
-          onReject={handleReject}
+          onrefactor={handleRequestAlteration}
           showEditButton={false}
         />
       )}

@@ -31,6 +31,7 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
+import { format } from "date-fns";
 import { Modal } from "@/components/ui/modal";
 
 interface PostFormProps {
@@ -38,26 +39,37 @@ interface PostFormProps {
   onCancel: () => void;
   initialData?: any;
   onDelete?: (id: string) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
-export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFormProps) {
+export function PostForm({
+  onSuccess,
+  onCancel,
+  initialData,
+  onDelete,
+  onDirtyChange,
+}: PostFormProps) {
   const supabase = createClient();
   const { user } = useAuthStore();
   const { clients } = useClientsStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
-  const [mediaPreviews, setMediaPreviews] = useState<string[]>(initialData?.media_urls || []);
+  const [mediaPreviews, setMediaPreviews] = useState<string[]>(
+    initialData?.media_urls || []
+  );
   const [templates, setTemplates] = useState<CaptionTemplate[]>([]);
   const [hashtagGroups, setHashtagGroups] = useState<HashtagGroup[]>([]);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     client_id: initialData?.client_id || "",
     caption: initialData?.caption || "",
-    scheduled_date: initialData?.scheduled_date || "",
-    post_type: initialData?.post_type || "photo" as PostType,
-    platforms: initialData?.platforms || ["instagram"] as Platform[],
+    scheduled_date:
+      initialData?.scheduled_date || format(new Date(), "yyyy-MM-dd'T'10:00"),
+    post_type: initialData?.post_type || ("photo" as PostType),
+    platforms:
+      initialData?.platforms || (["instagram", "facebook"] as Platform[]),
     status: initialData?.status || "draft",
   });
 
@@ -78,12 +90,46 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
   }, [formData.client_id, user]);
 
   useEffect(() => {
-    const totalMedia = mediaPreviews.length + mediaFiles.length;
+    const totalMedia = mediaPreviews.length;
     if (totalMedia > 1 && formData.post_type === "photo") {
-      setFormData(prev => ({ ...prev, post_type: "carousel" }));
+      setFormData((prev) => ({ ...prev, post_type: "carousel" }));
       toast.success("Carrossel detectado automaticamente!");
+    } else if (totalMedia <= 1 && formData.post_type === "carousel") {
+      setFormData((prev) => ({ ...prev, post_type: "photo" }));
     }
   }, [mediaPreviews.length, mediaFiles.length]);
+
+  useEffect(() => {
+    if (!onDirtyChange) return;
+
+    const defaultDate = format(new Date(), "yyyy-MM-dd'T'10:00");
+    const initialPlatforms = initialData?.platforms || [
+      "instagram",
+      "facebook",
+    ];
+    const currentPlatforms = formData.platforms;
+
+    const hasChanged =
+      (formData.client_id || "") !== (initialData?.client_id || "") ||
+      (formData.caption || "") !== (initialData?.caption || "") ||
+      (formData.scheduled_date || defaultDate) !==
+        (initialData?.scheduled_date || defaultDate) ||
+      (formData.post_type || "photo") !== (initialData?.post_type || "photo") ||
+      mediaPreviews.length !== (initialData?.media_urls?.length || 0) ||
+      !mediaPreviews.every((p) =>
+        (initialData?.media_urls || []).includes(p)
+      ) ||
+      initialPlatforms.length !== currentPlatforms.length ||
+      !initialPlatforms.every((p: Platform) => currentPlatforms.includes(p));
+
+    onDirtyChange(hasChanged);
+  }, [formData, mediaPreviews, initialData, onDirtyChange]);
+
+  useEffect(() => {
+    if (formData.post_type === "story") {
+      setFormData((prev) => ({ ...prev, caption: "" }));
+    }
+  }, [formData.post_type]);
 
   const loadTemplatesAndHashtags = async () => {
     if (!formData.client_id || !user) return;
@@ -113,7 +159,7 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setMediaFiles((prev) => [...prev, ...acceptedFiles]);
-    
+
     acceptedFiles.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -156,9 +202,9 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
   };
 
   const insertTemplate = (template: CaptionTemplate) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      caption: prev.caption + (prev.caption ? "\n\n" : "") + template.content
+      caption: prev.caption + (prev.caption ? "\n\n" : "") + template.content,
     }));
     toast.success("Template inserido!");
     setIsTemplateModalOpen(false);
@@ -166,20 +212,20 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
 
   const insertHashtags = (group: HashtagGroup) => {
     const hashtags = group.hashtags.join(" ");
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      caption: prev.caption + (prev.caption ? "\n\n" : "") + hashtags
+      caption: prev.caption + (prev.caption ? "\n\n" : "") + hashtags,
     }));
     toast.success("Hashtags inseridas!");
     setIsHashtagModalOpen(false);
   };
 
   const togglePlatform = (platform: Platform) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       platforms: prev.platforms.includes(platform)
         ? prev.platforms.filter((p: Platform) => p !== platform)
-        : [...prev.platforms, platform]
+        : [...prev.platforms, platform],
     }));
   };
 
@@ -189,14 +235,16 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
 
     try {
       const uploadedUrls: string[] = [];
-      
+
       for (const file of mediaFiles) {
         const url = await uploadToCloudinary(file);
         uploadedUrls.push(url);
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         toast.error("Usuário não autenticado");
         return;
@@ -204,7 +252,10 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
 
       const postData = {
         ...formData,
-        media_urls: [...mediaPreviews.filter(url => url.startsWith("http")), ...uploadedUrls],
+        media_urls: [
+          ...mediaPreviews.filter((url) => url.startsWith("http")),
+          ...uploadedUrls,
+        ],
         created_by: user.id,
       };
 
@@ -249,29 +300,59 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
     { value: "story", label: "Story" },
   ];
 
-  const selectedClient = clients.find(c => c.id === formData.client_id);
+  const selectedClient = clients.find((c) => c.id === formData.client_id);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <Modal isOpen={isTemplateModalOpen} onClose={() => setIsTemplateModalOpen(false)} title="Templates de Legenda">
+      <Modal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        title="Templates de Legenda"
+      >
         <div className="space-y-2">
-          {templates.length > 0 ? templates.map(template => (
-            <Button key={template.id} variant="outline" className="w-full justify-start" onClick={() => insertTemplate(template)}>
-              {template.title}
-            </Button>
-          )) : <p className="text-sm text-muted-foreground">Nenhum template encontrado para este cliente.</p>}
+          {templates.length > 0 ? (
+            templates.map((template) => (
+              <Button
+                key={template.id}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => insertTemplate(template)}
+              >
+                {template.title}
+              </Button>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nenhum template encontrado para este cliente.
+            </p>
+          )}
         </div>
       </Modal>
-      <Modal isOpen={isHashtagModalOpen} onClose={() => setIsHashtagModalOpen(false)} title="Grupos de Hashtags">
+      <Modal
+        isOpen={isHashtagModalOpen}
+        onClose={() => setIsHashtagModalOpen(false)}
+        title="Grupos de Hashtags"
+      >
         <div className="space-y-2">
-          {hashtagGroups.length > 0 ? hashtagGroups.map(group => (
-            <Button key={group.id} variant="outline" className="w-full justify-start" onClick={() => insertHashtags(group)}>
-              {group.title}
-            </Button>
-          )) : <p className="text-sm text-muted-foreground">Nenhum grupo de hashtags encontrado para este cliente.</p>}
+          {hashtagGroups.length > 0 ? (
+            hashtagGroups.map((group) => (
+              <Button
+                key={group.id}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => insertHashtags(group)}
+              >
+                {group.title}
+              </Button>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nenhum grupo de hashtags encontrado para este cliente.
+            </p>
+          )}
         </div>
       </Modal>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Column */}
         <div className="space-y-6">
@@ -279,8 +360,11 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
             <Label htmlFor="client_id">Cliente *</Label>
             <div className="flex items-center gap-3">
               {selectedClient && (
-                <img 
-                  src={selectedClient.avatar_url || `https://ui-avatars.com/api/?name=${selectedClient.name}`} 
+                <img
+                  src={
+                    selectedClient.avatar_url ||
+                    `https://ui-avatars.com/api/?name=${selectedClient.name}`
+                  }
                   alt={selectedClient.name}
                   className="w-10 h-10 rounded-full object-cover"
                 />
@@ -294,9 +378,9 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
                   }
                   options={[
                     { value: "", label: "Selecione um cliente" },
-                    ...clients.map((c) => ({ 
-                      value: c.id, 
-                      label: `${c.name}` 
+                    ...clients.map((c) => ({
+                      value: c.id,
+                      label: `${c.name}`,
                     })),
                   ]}
                   required
@@ -311,7 +395,10 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
               id="post_type"
               value={formData.post_type}
               onChange={(e) =>
-                setFormData({ ...formData, post_type: e.target.value as PostType })
+                setFormData({
+                  ...formData,
+                  post_type: e.target.value as PostType,
+                })
               }
               options={postTypeOptions}
               required
@@ -339,10 +426,12 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
               />
             </div>
           </div>
-          
+
           <DateTimePicker
             value={formData.scheduled_date}
-            onChange={(value) => setFormData({ ...formData, scheduled_date: value })}
+            onChange={(value) =>
+              setFormData({ ...formData, scheduled_date: value })
+            }
             label="Data e Hora de Agendamento"
             required
           />
@@ -350,20 +439,43 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
           <div className="space-y-2">
             <Label htmlFor="caption">Legenda *</Label>
             <div className="relative">
-              <Textarea
-                id="caption"
-                value={formData.caption}
-                onChange={(e) =>
-                  setFormData({ ...formData, caption: e.target.value })
-                }
-                rows={8}
-                placeholder="Escreva a legenda do post..."
-                required
-              />
-              {formData.client_id && (
-                <div className="absolute bottom-2 right-2 flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsTemplateModalOpen(true)}>Templates</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsHashtagModalOpen(true)}>Hashtags</Button>
+              <div className="relative">
+                <Textarea
+                  id="caption"
+                  value={formData.caption}
+                  onChange={(e) =>
+                    setFormData({ ...formData, caption: e.target.value })
+                  }
+                  rows={8}
+                  placeholder={
+                    formData.post_type === "story"
+                      ? "Legendas não são aplicáveis para Stories."
+                      : "Escreva a legenda do post..."
+                  }
+                  required={formData.post_type !== "story"}
+                  disabled={formData.post_type === "story"}
+                />
+              </div>
+              {formData.client_id && !(formData.post_type === "story") && (
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsTemplateModalOpen(true)}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Templates
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsHashtagModalOpen(true)}
+                  >
+                    <Hash className="h-4 w-4 mr-2" />
+                    Hashtags
+                  </Button>
                 </div>
               )}
             </div>
@@ -422,7 +534,7 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
           </div>
         </div>
       </div>
-      
+
       <div className="flex gap-2 pt-6 border-t">
         <Button
           type="button"

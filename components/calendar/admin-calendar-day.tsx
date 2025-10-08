@@ -17,7 +17,13 @@ interface AdminCalendarDayProps {
   onEdit?: (post: Post) => void;
 }
 
-export function AdminCalendarDay({ day, posts, specialDate, onPostClick, onEdit }: AdminCalendarDayProps) {
+export function AdminCalendarDay({
+  day,
+  posts,
+  specialDate,
+  onPostClick,
+  onEdit,
+}: AdminCalendarDayProps) {
   const [isListModalOpen, setIsListModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -34,7 +40,7 @@ export function AdminCalendarDay({ day, posts, specialDate, onPostClick, onEdit 
     return acc;
   }, {} as Record<string, Post[]>);
 
-  const clients = Object.values(postsByClient).map(clientPosts => ({
+  const clients = Object.values(postsByClient).map((clientPosts) => ({
     client: clientPosts[0].client,
     posts: clientPosts,
     count: clientPosts.length,
@@ -69,39 +75,38 @@ export function AdminCalendarDay({ day, posts, specialDate, onPostClick, onEdit 
 
   return (
     <>
-      <div 
-        className="space-y-1 h-full cursor-pointer" 
+      <div
+        className="flex items-start gap-1 h-full cursor-pointer"
         onClick={openModalForDay}
       >
         {specialDate && (
-          <div className="flex items-center gap-1 text-blue-500">
+          <div title={specialDate.title} className="text-blue-500 pt-1">
             <Star className="h-4 w-4 fill-current" />
-            <span className="text-xs truncate">{specialDate.title}</span>
           </div>
         )}
-        {clients.map(({ client, posts, count }) => (
+        {clients.map(({ client, count }) => (
           <div
             key={client?.id}
-            className="relative group"
+            className="relative"
             onClick={(e) => {
               e.stopPropagation();
               openModalForClient(client);
             }}
+            title={client?.name}
           >
-            <div
-              className="text-xs px-2 py-1 rounded text-white truncate hover:opacity-80 transition-opacity flex items-center justify-between"
-              style={{ backgroundColor: client?.brand_color }}
-            >
-              <span className="truncate flex-1">{client?.name}</span>
-              {count > 1 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-1 h-4 min-w-4 px-1 text-xs bg-white text-gray-900"
-                >
-                  {count}
-                </Badge>
-              )}
-            </div>
+            <img
+              src={
+                client?.avatar_url ||
+                `https://ui-avatars.com/api/?name=${client?.name}&background=random`
+              }
+              alt={client?.name || "Avatar"}
+              className="w-11 h-11 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border"
+            />
+            {count > 1 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold ring-2 ring-background">
+                {count}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -112,13 +117,13 @@ export function AdminCalendarDay({ day, posts, specialDate, onPostClick, onEdit 
         title={`Eventos do Dia: ${format(day, "dd/MM/yyyy")}`}
         size="lg"
       >
-        <div className="space-y-4">
-          {specialDate && (!selectedClient || selectedClient.id === specialDate.client_id) && (
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+          {specialDate && (
             <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
-              <div className="flex items-start gap-2">
-                <Star className="h-5 w-5 text-blue-500 mt-0.5" />
+              <div className="flex items-start gap-3">
+                <Star className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                  <h3 className="font-semibold text-blue-800 dark:text-blue-200">
                     {specialDate.title}
                   </h3>
                   {specialDate.description && (
@@ -130,8 +135,30 @@ export function AdminCalendarDay({ day, posts, specialDate, onPostClick, onEdit 
               </div>
             </div>
           )}
+          {specialDate &&
+            (!selectedClient ||
+              selectedClient.id === specialDate.client_id) && (
+              <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                <div className="flex items-start gap-2">
+                  <Star className="h-5 w-5 text-blue-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                      {specialDate.title}
+                    </h3>
+                    {specialDate.description && (
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        {specialDate.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {(selectedClient ? posts.filter(p => p.client_id === selectedClient.id) : posts).map((post) => (
+          {(selectedClient
+            ? posts.filter((p) => p.client_id === selectedClient.id)
+            : posts
+          ).map((post) => (
             <div
               key={post.id}
               className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
@@ -146,14 +173,20 @@ export function AdminCalendarDay({ day, posts, specialDate, onPostClick, onEdit 
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2">
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                    style={{ backgroundColor: post.client?.brand_color }}
-                  >
-                    {post.client?.name[0]}
-                  </div>
+                  <img
+                    src={
+                      post.client?.avatar_url ||
+                      `https://ui-avatars.com/api/?name=${post.client?.name}`
+                    }
+                    alt={post.client?.name || "Avatar do cliente"}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
                   <span className="font-medium">{post.client?.name}</span>
-                  <div className={`w-2 h-2 rounded-full ${getStatusColor(post.status)}`} />
+                  <div
+                    className={`w-2 h-2 rounded-full ${getStatusColor(
+                      post.status
+                    )}`}
+                  />
                 </div>
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                   {post.caption}
@@ -169,6 +202,29 @@ export function AdminCalendarDay({ day, posts, specialDate, onPostClick, onEdit 
               <Eye className="h-4 w-4 text-muted-foreground" />
             </div>
           ))}
+
+          <div className="flex flex-wrap gap-x-4 gap-y-2 pt-4 border-t mt-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-500" />
+              <span className="text-xs">Rascunho</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+              <span className="text-xs">Pendente</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              <span className="text-xs">Aprovado</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              <span className="text-xs">Rejeitado</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="text-xs">Publicado</span>
+            </div>
+          </div>
         </div>
       </Modal>
 

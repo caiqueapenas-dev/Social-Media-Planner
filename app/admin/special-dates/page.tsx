@@ -26,11 +26,12 @@ export default function SpecialDatesPage() {
   const [editingDate, setEditingDate] = useState<SpecialDate | null>(null);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [formData, setFormData] = useState({
-    client_id: "",
+    client_ids: [] as string[],
     title: "",
     date: "",
     description: "",
     recurrent: false,
+    all_clients: false,
   });
 
   useEffect(() => {
@@ -56,10 +57,12 @@ export default function SpecialDatesPage() {
   const loadSpecialDates = async () => {
     let query = supabase
       .from("special_dates")
-      .select(`
+      .select(
+        `
         *,
         client:clients(*)
-      `)
+      `
+      )
       .order("date", { ascending: true });
 
     if (selectedClientId) {
@@ -77,9 +80,11 @@ export default function SpecialDatesPage() {
     e.preventDefault();
 
     if (editingDate) {
+      // Logic for editing a single special date
       const { error } = await supabase
         .from("special_dates")
         .update({
+          client_id: formData.client_ids[0], // Keep single client logic for editing
           title: formData.title,
           date: formData.date,
           description: formData.description,
@@ -91,19 +96,36 @@ export default function SpecialDatesPage() {
         toast.error("Erro ao atualizar data");
         return;
       }
-
       toast.success("Data atualizada!");
     } else {
-      const { error } = await supabase
-        .from("special_dates")
-        .insert(formData);
+      // Logic for creating special dates for multiple clients
+      const clientsToCreate = formData.all_clients
+        ? clients.map((c) => c.id)
+        : formData.client_ids;
 
-      if (error) {
-        toast.error("Erro ao criar data");
+      if (clientsToCreate.length === 0) {
+        toast.error("Selecione ao menos um cliente.");
         return;
       }
 
-      toast.success("Data criada!");
+      const records = clientsToCreate.map((clientId) => ({
+        client_id: clientId,
+        title: formData.title,
+        date: formData.date,
+        description: formData.description,
+        recurrent: formData.recurrent,
+      }));
+
+      const { error } = await supabase.from("special_dates").insert(records);
+
+      if (error) {
+        toast.error("Erro ao criar data(s) comemorativa(s)");
+        return;
+      }
+
+      toast.success(
+        `${records.length} data(s) comemorativa(s) criada(s) com sucesso!`
+      );
     }
 
     setIsModalOpen(false);
@@ -131,11 +153,12 @@ export default function SpecialDatesPage() {
   const handleEdit = (date: SpecialDate) => {
     setEditingDate(date);
     setFormData({
-      client_id: date.client_id,
+      client_ids: [date.client_id],
       title: date.title,
       date: date.date,
       description: date.description || "",
       recurrent: date.recurrent || false,
+      all_clients: false,
     });
     setIsModalOpen(true);
   };
@@ -143,11 +166,12 @@ export default function SpecialDatesPage() {
   const resetForm = () => {
     setEditingDate(null);
     setFormData({
-      client_id: selectedClientId || "",
+      client_ids: selectedClientId ? [selectedClientId] : [],
       title: "",
       date: "",
       description: "",
       recurrent: false,
+      all_clients: false,
     });
   };
 
@@ -221,16 +245,22 @@ export default function SpecialDatesPage() {
                           {!selectedClientId && date.client && (
                             <span
                               className="text-xs px-2 py-1 rounded-full text-white"
-                              style={{ backgroundColor: date.client.brand_color }}
+                              style={{
+                                backgroundColor: date.client.brand_color,
+                              }}
                             >
                               {date.client.name}
                             </span>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">
-                          {format(new Date(date.date + 'T00:00:00'), "dd 'de' MMMM 'de' yyyy", {
-                            locale: ptBR,
-                          })}
+                          {format(
+                            new Date(date.date + "T00:00:00"),
+                            "dd 'de' MMMM 'de' yyyy",
+                            {
+                              locale: ptBR,
+                            }
+                          )}
                         </p>
                         {date.description && (
                           <p className="text-sm">{date.description}</p>
@@ -268,24 +298,71 @@ export default function SpecialDatesPage() {
           setIsModalOpen(false);
           resetForm();
         }}
-        title={editingDate ? "Editar Data Comemorativa" : "Nova Data Comemorativa"}
+        title={
+          editingDate ? "Editar Data Comemorativa" : "Nova Data Comemorativa"
+        }
         size="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="client_id">Cliente *</Label>
-            <Select
-              id="client_id"
-              value={formData.client_id}
-              onChange={(e) =>
-                setFormData({ ...formData, client_id: e.target.value })
-              }
-              options={[
-                { value: "", label: "Selecione um cliente" },
-                ...clients.map((c) => ({ value: c.id, label: c.name })),
-              ]}
-              required
-            />
+            <Label>Cliente(s) *</Label>
+            {editingDate ? (
+              <Input
+                value={
+                  clients.find((c) => c.id === formData.client_ids[0])?.name ||
+                  ""
+                }
+                disabled
+              />
+            ) : (
+              <>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="all_clients"
+                    checked={formData.all_clients}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        all_clients: e.target.checked,
+                        client_ids: [],
+                      })
+                    }
+                  />
+                  <Label htmlFor="all_clients">Todos os Clientes</Label>
+                </div>
+                {!formData.all_clients && (
+                  <div className="max-h-32 overflow-y-auto space-y-2 rounded-md border p-2">
+                    {clients.map((client) => (
+                      <div
+                        key={client.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <input
+                          type="checkbox"
+                          id={`client-${client.id}`}
+                          checked={formData.client_ids.includes(client.id)}
+                          onChange={(e) => {
+                            const { checked } = e.target;
+                            setFormData((prev) => ({
+                              ...prev,
+                              client_ids: checked
+                                ? [...prev.client_ids, client.id]
+                                : prev.client_ids.filter(
+                                    (id) => id !== client.id
+                                  ),
+                            }));
+                          }}
+                        />
+                        <Label htmlFor={`client-${client.id}`}>
+                          {client.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -325,7 +402,7 @@ export default function SpecialDatesPage() {
               rows={3}
               placeholder="Informações adicionais sobre a data..."
             />
-             <div className="flex items-center space-x-2 pt-2">
+            <div className="flex items-center space-x-2 pt-2">
               <input
                 type="checkbox"
                 id="recurrent"
