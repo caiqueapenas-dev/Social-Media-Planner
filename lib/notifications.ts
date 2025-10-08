@@ -90,7 +90,7 @@ export async function notifyNewPost(clientId: string) {
     .eq("id", clientId)
     .single();
 
-  if (!client) return;
+  if (!client?.user_id) return;
 
   await createNotification({
     userId: client.user_id,
@@ -99,51 +99,3 @@ export async function notifyNewPost(clientId: string) {
     link: "/client/dashboard",
   });
 }
-
-export async function notifyNewInsight(clientId: string, createdBy: string) {
-  const supabase = createClient();
-
-  const { data: creator } = await supabase
-    .from("users")
-    .select("role, full_name")
-    .eq("id", createdBy)
-    .single();
-
-  if (!creator) return;
-
-  if (creator.role === "admin") {
-    // Notify client
-    const { data: client } = await supabase
-      .from("clients")
-      .select("user_id")
-      .eq("id", clientId)
-      .single();
-
-    if (client) {
-      await createNotification({
-        userId: client.user_id,
-        title: "Nova Ideia Compartilhada",
-        message: `${creator.full_name} compartilhou uma nova ideia`,
-        link: "/client/insights",
-      });
-    }
-  } else {
-    // Notify all admins
-    const { data: admins } = await supabase
-      .from("users")
-      .select("id")
-      .eq("role", "admin");
-
-    if (admins) {
-      for (const admin of admins) {
-        await createNotification({
-          userId: admin.id,
-          title: "Nova Ideia do Cliente",
-          message: `${creator.full_name} compartilhou uma nova ideia`,
-          link: "/admin/insights",
-        });
-      }
-    }
-  }
-}
-

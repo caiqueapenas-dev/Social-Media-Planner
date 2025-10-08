@@ -15,13 +15,11 @@ import { Lightbulb, Send, Edit, Trash2 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { Insight } from "@/lib/types";
-import { useInsightsStore } from "@/store/useInsightsStore";
 
 export default function InsightsPage() {
   const supabase = createClient();
   const { clients, setClients } = useClientsStore();
   const { user } = useAuthStore();
-  const { setLastViewed } = useInsightsStore();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [newInsight, setNewInsight] = useState("");
@@ -31,11 +29,21 @@ export default function InsightsPage() {
 
   useEffect(() => {
     loadClients();
-    setLastViewed(new Date());
-  }, []);
+    if (user) {
+      // Record visit timestamp
+      supabase
+        .from('user_insight_views')
+        .upsert({ user_id: user.id, last_viewed_at: new Date().toISOString() })
+        .then();
+    }
+  }, [user]);
 
   useEffect(() => {
-    loadInsights();
+    if (selectedClientId) {
+      loadInsights();
+    } else {
+      setInsights([]); // Clear insights if no client is selected
+    }
   }, [selectedClientId]);
 
   const loadClients = async () => {
@@ -51,17 +59,16 @@ export default function InsightsPage() {
   };
 
   const loadInsights = async () => {
+    if (!selectedClientId) return;
+
     let query = supabase
       .from("insights")
       .select(`
         *,
         user:users!insights_created_by_fkey(id, full_name, email, avatar_url, role)
       `)
+      .eq("client_id", selectedClientId)
       .order("created_at", { ascending: false});
-
-    if (selectedClientId) {
-      query = query.eq("client_id", selectedClientId);
-    }
 
     const { data } = await query;
     if (data) {
@@ -77,14 +84,18 @@ export default function InsightsPage() {
 
     try {
       if (editingInsight) {
-        const { error } = await supabase
+        // Handle update
+        const { data, error } = await supabase
           .from("insights")
           .update({ content: newInsight })
-          .eq("id", editingInsight.id);
+          .eq("id", editingInsight.id)
+          .select('*, user:users!insights_created_by_fkey(*)')
+          .single();
         if (error) throw error;
-        toast.success("Insight atualizado!");
-        setInsights(insights.map(i => i.id === editingInsight.id ? { ...i, content: newInsight } : i));
+        toast.success("Ideia atualizada!");
+        setInsights(insights.map(i => i.id === editingInsight.id ? data as any : i));
       } else {
+        // Handle insert
         const { data: newInsightData, error } = await supabase
           .from("insights")
           .insert({
@@ -96,16 +107,14 @@ export default function InsightsPage() {
         if (error) throw error;
         
         setInsights([newInsightData as any, ...insights]);
-        const { notifyNewInsight } = await import("@/lib/notifications");
-        await notifyNewInsight(selectedClientId, user.id);
-        toast.success("Insight adicionado!");
+        toast.success("Ideia adicionada!");
       }
       
       setNewInsight("");
       setEditingInsight(null);
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao salvar insight");
+      toast.error("Erro ao salvar ideia.");
     } finally {
       setIsSubmitting(false);
     }
@@ -117,12 +126,12 @@ export default function InsightsPage() {
   };
 
   const handleDelete = async (ids: string[]) => {
-    if (!confirm(`Tem certeza que quer excluir ${ids.length} insight(s)?`)) return;
+    if (!confirm(`Tem certeza que quer excluir ${ids.length} ideia(s)?`)) return;
     const { error } = await supabase.from("insights").delete().in("id", ids);
     if (error) {
-      toast.error("Erro ao excluir insight(s)");
+      toast.error("Erro ao excluir ideia(s).");
     } else {
-      toast.success("Insight(s) excluído(s)!");
+      toast.success("Ideia(s) excluída(s)!");
       setInsights(insights.filter(i => !ids.includes(i.id)));
       setSelectedInsights([]);
     }
@@ -147,13 +156,13 @@ export default function InsightsPage() {
         </div>
 
         <div className="flex justify-between items-end">
-          <div className="space-y-2">
+          <div className="space-y-2 max-w-sm w-full">
             <Label>Filtrar por Cliente</Label>
             <Select
               value={selectedClientId}
               onChange={(e) => setSelectedClientId(e.target.value)}
               options={[
-                { value: "", label: "Todos os clientes" },
+                { value: "", label: "Selecione um cliente para começar" },
                 ...clients.map((c) => ({ value: c.id, label: c.name })),
               ]}
             />
@@ -165,36 +174,38 @@ export default function InsightsPage() {
           )}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5" />
-              {editingInsight ? "Editar Ideia" : "Adicionar Nova Ideia"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Textarea
-                value={newInsight}
-                onChange={(e) => setNewInsight(e.target.value)}
-                placeholder="Compartilhe uma ideia de conteúdo..."
-                rows={4}
-                required
-              />
-              <div className="flex gap-2">
-                <Button type="submit" disabled={isSubmitting || !selectedClientId} className="gap-2">
-                  <Send className="h-4 w-4" />
-                  {isSubmitting ? "Enviando..." : (editingInsight ? "Atualizar Ideia" : "Enviar Ideia")}
-                </Button>
-                {editingInsight && (
-                  <Button variant="outline" onClick={() => { setEditingInsight(null); setNewInsight(""); }}>
-                    Cancelar Edição
-                  </Button>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        {selectedClientId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lightbulb className="h-5 w-5" />
+                  {editingInsight ? `Editando Ideia para ${selectedClient?.name}` : `Adicionar Nova Ideia para ${selectedClient?.name}`}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <Textarea
+                    value={newInsight}
+                    onChange={(e) => setNewInsight(e.target.value)}
+                    placeholder="Compartilhe uma ideia de conteúdo..."
+                    rows={4}
+                    required
+                  />
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={isSubmitting} className="gap-2">
+                      <Send className="h-4 w-4" />
+                      {isSubmitting ? "Enviando..." : (editingInsight ? "Atualizar Ideia" : "Enviar Ideia")}
+                    </Button>
+                    {editingInsight && (
+                      <Button variant="outline" onClick={() => { setEditingInsight(null); setNewInsight(""); }}>
+                        Cancelar Edição
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -204,68 +215,74 @@ export default function InsightsPage() {
             {insights.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Lightbulb className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma ideia compartilhada ainda.</p>
+                <p>{selectedClientId ? "Nenhuma ideia compartilhada para este cliente." : "Selecione um cliente para ver as ideias."}</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {insights.map((insight: any) => (
-                  <div
-                    key={insight.id}
-                    className={`border rounded-lg p-4 space-y-2 transition-colors ${selectedInsights.includes(insight.id) ? 'bg-primary/10' : ''}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedInsights.includes(insight.id)}
-                          onChange={() => toggleSelection(insight.id)}
-                          className="cursor-pointer"
-                        />
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-cover bg-center"
-                          style={{
-                            backgroundColor: insight.client?.brand_color || "#8b5cf6",
-                            backgroundImage: insight.user?.avatar_url ? `url(${insight.user.avatar_url})` : 'none'
-                          }}
-                        >
-                          {!insight.user?.avatar_url && (insight.user?.full_name?.[0] || "?")}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm">
-                              {insight.user?.full_name || "Usuário"}
-                            </p>
-                            <Badge variant={insight.user?.role === 'admin' ? 'default' : 'secondary'}>
-                              {insight.user?.role === 'admin' ? 'Admin' : 'Cliente'}
-                            </Badge>
+                {insights.map((insight: any) => {
+                  const isByAdmin = insight.user?.role === 'admin';
+                  const author = isByAdmin ? insight.user : selectedClient;
+                  const authorRole = isByAdmin ? "Admin" : "Cliente";
+
+                  return (
+                    <div
+                      key={insight.id}
+                      className={`border rounded-lg p-4 space-y-2 transition-colors ${selectedInsights.includes(insight.id) ? 'bg-primary/10' : ''}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedInsights.includes(insight.id)}
+                            onChange={() => toggleSelection(insight.id)}
+                            className="cursor-pointer"
+                          />
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-cover bg-center"
+                            style={{
+                              backgroundColor: author?.brand_color || "#8b5cf6",
+                              backgroundImage: author?.avatar_url ? `url(${author.avatar_url})` : 'none'
+                            }}
+                          >
+                            {!author?.avatar_url && (author?.name?.[0] || author?.full_name?.[0] || "?")}
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDateTime(insight.created_at)}
-                          </p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm">
+                                {author?.name || author?.full_name || "Usuário"}
+                              </p>
+                              <Badge variant={isByAdmin ? 'default' : 'secondary'}>
+                                {authorRole}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDateTime(insight.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(insight)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete([insight.id])}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(insight)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete([insight.id])}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <p className="text-sm whitespace-pre-wrap pl-12">
+                        {insight.content}
+                      </p>
                     </div>
-                    <p className="text-sm whitespace-pre-wrap pl-12">
-                      {insight.content}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

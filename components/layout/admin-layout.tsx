@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useInsightsStore } from "@/store/useInsightsStore";
 import { Button } from "@/components/ui/button";
 import { 
   Calendar, 
@@ -22,7 +21,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
-import { NotificationBell } from "@/components/notifications/notification-bell";
 import toast from "react-hot-toast";
 
 const navigation = [
@@ -36,27 +34,11 @@ const navigation = [
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [newInsightsCount, setNewInsightsCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
   const { user } = useAuthStore();
-  const { lastViewed } = useInsightsStore();
   const { theme, setTheme } = useTheme();
-
-  useEffect(() => {
-    if (user) {
-      fetchNewInsightsCount();
-    }
-  }, [user, lastViewed]);
-
-  const fetchNewInsightsCount = async () => {
-    const { data, count } = await supabase
-      .from("insights")
-      .select("*", { count: "exact", head: true })
-      .gt("created_at", lastViewed?.toISOString() || new Date(0).toISOString());
-    setNewInsightsCount(count || 0);
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -67,15 +49,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0",
@@ -83,7 +62,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
           <div className="flex items-center justify-between p-6 border-b">
             <div className="flex items-center gap-2">
               <div className="bg-primary p-2 rounded-lg">
@@ -98,8 +76,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <X className="h-6 w-6" />
             </button>
           </div>
-
-          {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
@@ -117,24 +93,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="h-5 w-5" />
                   {item.name}
-                  {item.name === "Insights" && newInsightsCount > 0 && (
-                    <span className="ml-auto text-xs bg-destructive text-destructive-foreground rounded-full px-2">
-                      {newInsightsCount}
-                    </span>
-                  )}
                 </Link>
               );
             })}
           </nav>
-
-          {/* User info and logout */}
           <div className="p-4 border-t space-y-2">
             <div className="flex items-center gap-2 px-3 py-2">
               <div className="flex-1">
                 <p className="text-sm font-medium">{user?.full_name}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
-              <NotificationBell />
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -161,10 +129,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </aside>
-
-      {/* Main content */}
       <div className="lg:pl-64">
-        {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />
@@ -177,8 +142,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="w-6" />
         </header>
-
-        {/* Page content */}
         <main className="p-4 lg:p-8">
           {children}
         </main>

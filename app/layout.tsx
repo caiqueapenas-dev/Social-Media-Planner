@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { PWAInstaller } from "@/components/pwa-installer";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Toaster } from "react-hot-toast";
 import Script from "next/script";
 
@@ -53,6 +54,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <NotificationBell />
           <PWAInstaller />
           <Toaster position="top-right" />
         </ThemeProvider>
@@ -73,4 +75,3 @@ export default function RootLayout({
     </html>
   );
 }
-

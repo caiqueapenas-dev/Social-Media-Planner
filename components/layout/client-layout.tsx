@@ -44,15 +44,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0",
@@ -60,7 +57,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
           <div className="flex items-center justify-between p-6 border-b">
             <div className="flex items-center gap-2">
               <div className="bg-primary p-2 rounded-lg">
@@ -75,8 +71,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               <X className="h-6 w-6" />
             </button>
           </div>
-
-          {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
@@ -98,15 +92,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-
-          {/* User info and logout */}
           <div className="p-4 border-t space-y-2">
             <div className="flex items-center gap-2 px-3 py-2">
               <div className="flex-1">
                 <p className="text-sm font-medium">{user?.full_name}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
-              <NotificationBell />
+              
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -133,10 +125,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </aside>
-
-      {/* Main content */}
       <div className="lg:pl-64">
-        {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />
@@ -149,13 +138,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="w-6" />
         </header>
-
-        {/* Page content */}
         <main className="p-4 lg:p-8">
-          {children}
-        </main>
+  <NotificationBell />
+  {children}
+</main>
       </div>
     </div>
   );
 }
-

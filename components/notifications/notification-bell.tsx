@@ -13,13 +13,12 @@ export function NotificationBell() {
   const { user } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [hasUnread, setHasUnread] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadNotifications();
 
-      // Subscribe to real-time updates
       const channel = supabase
         .channel(`notifications-${user.id}`)
         .on(
@@ -54,98 +53,104 @@ export function NotificationBell() {
 
     if (data) {
       setNotifications(data);
-      setUnreadCount(data.filter((n) => !n.is_read).length);
+      setHasUnread(data.some((n) => !n.is_read));
     }
   };
 
   const markAsRead = async (id: string) => {
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", id);
-    
-    loadNotifications();
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    const newNotifications = notifications.map(n => n.id === id ? { ...n, is_read: true } : n);
+    setNotifications(newNotifications);
+    setHasUnread(newNotifications.some((n) => !n.is_read));
   };
 
   const markAllAsRead = async () => {
+    if (!user) return;
     await supabase
       .from("notifications")
       .update({ is_read: true })
-      .eq("user_id", user?.id)
+      .eq("user_id", user.id)
       .eq("is_read", false);
     
-    loadNotifications();
+    setNotifications(notifications.map(n => ({...n, is_read: true })));
+    setHasUnread(false);
   };
 
-  return (
-    <div className="relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setShowDropdown(!showDropdown)}
-        className="relative"
-      >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-xs rounded-full w-4 h-4 flex items-center justify-center">
-            {unreadCount}
-          </span>
-        )}
-      </Button>
+  if (!user) {
+    return null;
+  }
 
-      {showDropdown && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowDropdown(false)}
-          />
-          <div className="absolute right-0 mt-2 w-80 bg-card border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold">Notificações</h3>
-              {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={markAllAsRead}
-                  className="text-xs"
-                >
-                  Marcar todas como lidas
-                </Button>
-              )}
-            </div>
-            <div className="divide-y">
-              {notifications.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  Nenhuma notificação
-                </div>
-              ) : (
-                notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-4 cursor-pointer hover:bg-accent/50 transition-colors ${
-                      !notification.is_read ? "bg-accent/20" : ""
-                    }`}
-                    onClick={() => {
-                      markAsRead(notification.id);
-                      if (notification.link) {
-                        window.location.href = notification.link;
-                      }
-                    }}
+  return (
+    <div className="fixed top-4 right-4 z-[200]">
+      <div className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowDropdown(!showDropdown)}
+          className="relative rounded-full hover:bg-accent"
+        >
+          <Bell className="h-5 w-5" />
+          {hasUnread && (
+            <span className="absolute top-1 right-1.5 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background" />
+          )}
+        </Button>
+
+        {showDropdown && (
+          <>
+            <div
+              className="fixed inset-0 z-[200]"
+              onClick={() => setShowDropdown(false)}
+            />
+            <div
+              className="absolute top-full right-0 mt-2 w-80 bg-card border rounded-lg shadow-lg z-[201] max-h-96 overflow-y-auto animate-slide-down"
+            >
+              <div className="p-4 border-b flex items-center justify-between">
+                <h3 className="font-semibold">Notificações</h3>
+                {hasUnread && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={markAllAsRead}
+                    className="text-xs px-2"
                   >
-                    <p className="font-medium text-sm">{notification.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {formatDateTime(notification.created_at)}
-                    </p>
+                    Marcar todas como lidas
+                  </Button>
+                )}
+              </div>
+              <div className="divide-y">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    Nenhuma notificação
                   </div>
-                ))
-              )}
+                ) : (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`p-4 cursor-pointer hover:bg-accent/50 transition-colors ${
+                        !notification.is_read ? "bg-accent/20 font-semibold" : "text-muted-foreground"
+                      }`}
+                      onClick={() => {
+                        markAsRead(notification.id);
+                        if (notification.link) {
+                          window.location.href = notification.link;
+                        }
+                      }}
+                    >
+                      <p className="text-sm">{notification.title}</p>
+                      <p className={`text-xs mt-1 ${!notification.is_read ? 'text-foreground' : ''}`}>
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {formatDateTime(notification.created_at)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
