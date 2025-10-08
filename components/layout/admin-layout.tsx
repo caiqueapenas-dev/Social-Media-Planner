@@ -23,10 +23,13 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import toast from "react-hot-toast";
 
+import { Star } from "lucide-react";
+
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Calendário", href: "/admin/calendar", icon: Calendar },
   { name: "Clientes", href: "/admin/clients", icon: Users },
+  { name: "Datas Especiais", href: "/admin/special-dates", icon: Star },
   { name: "Insights", href: "/admin/insights", icon: Lightbulb },
   { name: "Configurações", href: "/admin/settings", icon: Settings },
 ];

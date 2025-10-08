@@ -5,13 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import { ClientLayout } from "@/components/layout/client-layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
-import { Badge } from "@/components/ui/badge";
+import { ClientCalendarDay } from "@/components/calendar/client-calendar-day";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Post, SpecialDate } from "@/lib/types";
-import { formatDateTime } from "@/lib/utils";
 
 export default function ClientCalendarPage() {
   const supabase = createClient();
@@ -19,8 +17,6 @@ export default function ClientCalendarPage() {
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [clientId, setClientId] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
   useEffect(() => {
     loadClientData();
@@ -96,35 +92,6 @@ export default function ClientCalendarPage() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
 
-  const handlePostClick = (post: Post) => {
-    setSelectedPost(post);
-    setIsPostModalOpen(true);
-  };
-
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      draft: "bg-gray-500",
-      pending: "bg-yellow-500",
-      approved: "bg-green-500",
-      rejected: "bg-red-500",
-      published: "bg-blue-500",
-    };
-    return colors[status] || colors.draft;
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: any; label: string }> = {
-      draft: { variant: "secondary", label: "Rascunho" },
-      pending: { variant: "warning", label: "Pendente" },
-      approved: { variant: "success", label: "Aprovado" },
-      rejected: { variant: "destructive", label: "Rejeitado" },
-      published: { variant: "default", label: "Publicado" },
-    };
-
-    const config = statusConfig[status] || statusConfig.draft;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
   return (
     <ClientLayout>
       <div className="space-y-6">
@@ -183,37 +150,14 @@ export default function ClientCalendarPage() {
                     isToday ? "border-primary border-2 bg-primary/5" : ""
                   } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="text-sm font-medium">
-                      {format(day, "d")}
-                    </div>
-                    {specialDate && (
-                      <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                    )}
+                  <div className="text-sm font-medium mb-1">
+                    {format(day, "d")}
                   </div>
-                  
-                  {specialDate && (
-                    <div className="text-xs text-yellow-600 dark:text-yellow-500 mb-1 truncate">
-                      {specialDate.title}
-                    </div>
-                  )}
-                  
-                  <div className="space-y-1">
-                    {dayPosts.slice(0, 2).map((post) => (
-                      <div
-                        key={post.id}
-                        className={`text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 ${getStatusColor(post.status)} text-white`}
-                        onClick={() => handlePostClick(post)}
-                      >
-                        {post.post_type}
-                      </div>
-                    ))}
-                    {dayPosts.length > 2 && (
-                      <div className="text-xs text-muted-foreground">
-                        +{dayPosts.length - 2}
-                      </div>
-                    )}
-                  </div>
+                  <ClientCalendarDay
+                    posts={dayPosts}
+                    specialDate={specialDate}
+                    onPostUpdate={loadPosts}
+                  />
                 </div>
               );
             })}
@@ -221,81 +165,20 @@ export default function ClientCalendarPage() {
         </Card>
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-            <span className="text-sm">Data Comemorativa</span>
-          </div>
+        <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-yellow-500" />
-            <span className="text-sm">Pendente</span>
+            <span>Pendente / Data Especial</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="text-sm">Aprovado</span>
+            <span>Aprovado</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
-            <span className="text-sm">Publicado</span>
-          </div>
+          <p className="text-muted-foreground text-xs">
+            Clique nos dias para ver detalhes e aprovar posts
+          </p>
         </div>
       </div>
-
-      {/* Post Modal */}
-      {selectedPost && (
-        <Modal
-          isOpen={isPostModalOpen}
-          onClose={() => {
-            setIsPostModalOpen(false);
-            setSelectedPost(null);
-          }}
-          title="Detalhes do Post"
-          size="lg"
-        >
-          <div className="space-y-6">
-            {/* Status */}
-            <div>
-              {getStatusBadge(selectedPost.status)}
-            </div>
-
-            {/* Media */}
-            {selectedPost.media_urls && selectedPost.media_urls.length > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                {selectedPost.media_urls.map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Media ${i + 1}`}
-                    className="w-full rounded-lg"
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Caption */}
-            <div>
-              <h3 className="font-medium mb-2">Legenda</h3>
-              <p className="text-sm whitespace-pre-wrap">{selectedPost.caption}</p>
-            </div>
-
-            {/* Info */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Tipo:</span>
-                <p className="capitalize">{selectedPost.post_type}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Plataformas:</span>
-                <p className="capitalize">{selectedPost.platforms.join(", ")}</p>
-              </div>
-              <div className="col-span-2">
-                <span className="text-muted-foreground">Agendado para:</span>
-                <p>{formatDateTime(selectedPost.scheduled_date)}</p>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
     </ClientLayout>
   );
 }

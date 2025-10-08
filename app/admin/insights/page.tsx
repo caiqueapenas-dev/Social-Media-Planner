@@ -51,10 +51,10 @@ export default function InsightsPage() {
       .from("insights")
       .select(`
         *,
-        user:users(*)
+        user:users!insights_created_by_fkey(id, full_name, email, avatar_url)
       `)
       .eq("client_id", selectedClientId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false});
 
     if (data) {
       setInsights(data as unknown as Insight[]);
@@ -77,6 +77,10 @@ export default function InsightsPage() {
         });
 
       if (error) throw error;
+
+      // Notify client
+      const { notifyNewInsight } = await import("@/lib/notifications");
+      await notifyNewInsight(selectedClientId, user.id);
 
       toast.success("Insight adicionado com sucesso!");
       setNewInsight("");

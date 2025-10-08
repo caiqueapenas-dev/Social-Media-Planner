@@ -53,7 +53,7 @@ export default function ClientInsightsPage() {
       .from("insights")
       .select(`
         *,
-        user:users(*)
+        user:users!insights_created_by_fkey(id, full_name, email, avatar_url)
       `)
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
@@ -79,6 +79,10 @@ export default function ClientInsightsPage() {
         });
 
       if (error) throw error;
+
+      // Notify admin
+      const { notifyNewInsight } = await import("@/lib/notifications");
+      await notifyNewInsight(clientId, user.id);
 
       toast.success("Ideia compartilhada com sucesso!");
       setNewInsight("");

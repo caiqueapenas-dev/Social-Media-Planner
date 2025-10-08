@@ -8,20 +8,19 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PlatformButton } from "@/components/ui/platform-button";
 import { 
   Calendar, 
   CheckCircle, 
   Clock, 
   XCircle, 
   Plus,
-  AlertCircle
+  TrendingUp
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { Post } from "@/lib/types";
 import Link from "next/link";
 
-export default function AdminDashboardImproved() {
+export default function AdminDashboard() {
   const supabase = createClient();
   const { user, setUser, setLoading } = useAuthStore();
   const { posts, setPosts } = usePostsStore();
@@ -92,57 +91,7 @@ export default function AdminDashboardImproved() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const PostCard = ({ post }: { post: Post }) => (
-    <div className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors">
-      {post.media_urls && post.media_urls.length > 0 && (
-        <img
-          src={post.media_urls[0]}
-          alt="Post preview"
-          className="w-20 h-20 rounded object-cover"
-        />
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-2">
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-            style={{ backgroundColor: post.client?.brand_color }}
-          >
-            {post.client?.name[0]}
-          </div>
-          <span className="font-medium text-sm">{post.client?.name}</span>
-          {getStatusBadge(post.status)}
-        </div>
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-          {post.caption}
-        </p>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {formatDateTime(post.scheduled_date)}
-          </span>
-          <span className="capitalize">{post.post_type}</span>
-        </div>
-        <div className="flex gap-1">
-          <PlatformButton
-            platform="instagram"
-            selected={post.platforms.includes("instagram")}
-            onToggle={() => {}}
-            readOnly
-          />
-          <PlatformButton
-            platform="facebook"
-            selected={post.platforms.includes("facebook")}
-            onToggle={() => {}}
-            readOnly
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  const rejectedPosts = posts.filter((p) => p.status === "rejected").slice(0, 5);
-  const pendingPosts = posts.filter((p) => p.status === "pending").slice(0, 5);
-  const approvedPosts = posts
+  const upcomingPosts = posts
     .filter((p) => p.status === "approved" && new Date(p.scheduled_date) > new Date())
     .slice(0, 5);
 
@@ -217,7 +166,7 @@ export default function AdminDashboardImproved() {
               <CardTitle className="text-sm font-medium">
                 Total de Posts
               </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
@@ -228,61 +177,57 @@ export default function AdminDashboardImproved() {
           </Card>
         </div>
 
-        {/* Rejected Posts */}
-        {rejectedPosts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-destructive" />
-                Posts Rejeitados
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {rejectedPosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Pending Posts */}
-        {pendingPosts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-yellow-500" />
-                Posts Pendentes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingPosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Approved Posts */}
+        {/* Upcoming Posts */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              Próximos Posts Aprovados
+              <Calendar className="h-5 w-5" />
+              Próximos Posts Agendados
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {approvedPosts.length === 0 ? (
+            {upcomingPosts.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum post aprovado agendado
+                Nenhum post agendado no momento
               </p>
             ) : (
-              <div className="space-y-3">
-                {approvedPosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
+              <div className="space-y-4">
+                {upcomingPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors"
+                  >
+                    {post.media_urls && post.media_urls.length > 0 && (
+                      <img
+                        src={post.media_urls[0]}
+                        alt="Post preview"
+                        className="w-16 h-16 rounded object-cover"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: post.client?.brand_color }}
+                        />
+                        <span className="font-medium text-sm">
+                          {post.client?.name}
+                        </span>
+                        {getStatusBadge(post.status)}
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {post.caption}
+                      </p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDateTime(post.scheduled_date)}
+                        </span>
+                        <span className="capitalize">{post.post_type}</span>
+                        <span>{post.platforms.join(", ")}</span>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

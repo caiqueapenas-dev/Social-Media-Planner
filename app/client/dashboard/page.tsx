@@ -99,6 +99,10 @@ export default function ClientDashboard() {
       changes: { status: { from: post.status, to: "approved" } },
     });
 
+    // Notify admin
+    const { notifyPostApproved } = await import("@/lib/notifications");
+    await notifyPostApproved(post.id, post.client_id);
+
     toast.success("Post aprovado!");
     loadPosts();
     setIsReviewModalOpen(false);
@@ -130,6 +134,10 @@ export default function ClientDashboard() {
         content: feedback,
       });
     }
+
+    // Notify admin
+    const { notifyPostRejected } = await import("@/lib/notifications");
+    await notifyPostRejected(post.id, post.client_id);
 
     toast.success("Post reprovado. Feedback enviado!");
     setFeedback("");

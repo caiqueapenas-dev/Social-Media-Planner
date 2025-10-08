@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { PostForm } from "@/components/post/post-form";
+import { AdminCalendarDay } from "@/components/calendar/admin-calendar-day";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
@@ -168,37 +169,24 @@ export default function CalendarPage() {
               return (
                 <div
                   key={day.toISOString()}
-                  className={`aspect-square border rounded-lg p-2 hover:bg-accent/50 cursor-pointer transition-colors ${
-                    isToday ? "border-primary border-2" : ""
-                  } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
-                  onClick={() => handleDayClick(day)}
+                  className={`aspect-square border rounded-lg p-2 transition-colors ${
+                    isToday ? "border-primary border-2 bg-primary/5" : ""
+                  } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""} ${
+                    dayPosts.length === 0 ? "hover:bg-accent/50 cursor-pointer" : ""
+                  }`}
+                  onClick={() => dayPosts.length === 0 && handleDayClick(day)}
                 >
                   <div className="text-sm font-medium mb-1">
                     {format(day, "d")}
                   </div>
-                  <div className="space-y-1">
-                    {dayPosts.slice(0, 3).map((post) => (
-                      <div
-                        key={post.id}
-                        className="text-xs p-1 rounded truncate cursor-pointer hover:opacity-80"
-                        style={{
-                          backgroundColor: post.client?.brand_color,
-                          color: "white",
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePostClick(post);
-                        }}
-                      >
-                        {post.client?.name}
-                      </div>
-                    ))}
-                    {dayPosts.length > 3 && (
-                      <div className="text-xs text-muted-foreground">
-                        +{dayPosts.length - 3} mais
-                      </div>
-                    )}
-                  </div>
+                  <AdminCalendarDay
+                    posts={dayPosts}
+                    onPostClick={handlePostClick}
+                    onEdit={(post) => {
+                      setSelectedPost(post);
+                      setIsPostModalOpen(true);
+                    }}
+                  />
                 </div>
               );
             })}
