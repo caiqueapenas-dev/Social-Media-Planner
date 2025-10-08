@@ -14,10 +14,12 @@ import { Plus, Edit, Trash2, Mail, Building } from "lucide-react";
 import toast from "react-hot-toast";
 import { Client } from "@/lib/types";
 import { getInitials, uploadToCloudinary } from "@/lib/utils";
+import { KeyRound } from "lucide-react";
 
 export default function ClientsPage() {
   const supabase = createClient();
-  const { clients, setClients, addClient, updateClient, deleteClient } = useClientsStore();
+  const { clients, setClients, addClient, updateClient, deleteClient } =
+    useClientsStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
@@ -25,6 +27,7 @@ export default function ClientsPage() {
     email: "",
     brand_color: "#8b5cf6",
     avatar_url: "",
+    password: "",
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
@@ -60,59 +63,54 @@ export default function ClientsPage() {
     const clientData = { ...formData, avatar_url: avatarUrl };
 
     if (editingClient) {
-      const { error } = await supabase
-        .from("clients")
-        .update(clientData)
-        .eq("id", editingClient.id);
-
-      if (error) {
-        toast.error("Erro ao atualizar cliente");
-        return;
-      }
-
-      updateClient(editingClient.id, clientData);
-      toast.success("Cliente atualizado com sucesso!");
-    } else {
-      // First create user account for client
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: Math.random().toString(36).slice(-8), // Generate random password
-        email_confirm: true,
+      // Call the API route to update the user
+      const response = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: editingClient.user_id,
+          ...clientData,
+        }),
       });
 
-      if (authError || !authData.user) {
-        toast.error("Erro ao criar conta do cliente");
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error(result.error || "Erro ao atualizar cliente.");
         return;
       }
 
-      // Create user record
-      const { error: userError } = await supabase
-        .from("users")
-        .insert({
-          id: authData.user.id,
-          email: formData.email,
-          role: "client",
-          full_name: formData.name,
-          avatar_url: avatarUrl,
-        });
-
-      if (userError) {
-        toast.error("Erro ao criar usuário");
-        return;
-      }
-
-      // Create client record
-      const { data: newClientData, error: clientError } = await supabase
+      // Also update the local client table data that doesn't require admin rights
+      const { error: clientError } = await supabase
         .from("clients")
-        .insert({
-          ...clientData,
-          user_id: authData.user.id,
+        .update({
+          name: clientData.name,
+          email: clientData.email,
+          brand_color: clientData.brand_color,
+          avatar_url: clientData.avatar_url,
         })
-        .select()
-        .single();
+        .eq("id", editingClient.id);
 
       if (clientError) {
-        toast.error("Erro ao criar cliente");
+        toast.error("Erro ao atualizar dados do cliente.");
+        return;
+      }
+
+      updateClient(editingClient.id, { ...editingClient, ...clientData });
+      toast.success("Cliente atualizado com sucesso!");
+    } else {
+      // Call the API route to create the user
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...clientData,
+          password: clientData.password || Math.random().toString(36).slice(-8),
+        }),
+      });
+
+      const newClientData = await response.json();
+      if (!response.ok) {
+        toast.error(newClientData.error || "Erro ao criar cliente.");
         return;
       }
 
@@ -127,10 +125,7 @@ export default function ClientsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
 
-    const { error } = await supabase
-      .from("clients")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("clients").delete().eq("id", id);
 
     if (error) {
       toast.error("Erro ao excluir cliente");
@@ -148,6 +143,7 @@ export default function ClientsPage() {
       email: client.email,
       brand_color: client.brand_color,
       avatar_url: client.avatar_url || "",
+      password: "",
     });
     setIsModalOpen(true);
   };
@@ -159,6 +155,7 @@ export default function ClientsPage() {
       email: "",
       brand_color: "#8b5cf6",
       avatar_url: "",
+      password: "",
     });
     setAvatarFile(null);
   };
@@ -209,11 +206,19 @@ export default function ClientsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden">
-                      <img src={client.avatar_url || `https://ui-avatars.com/api/?name=${client.name}`} alt={client.name} />
+                      <img
+                        src={
+                          client.avatar_url ||
+                          `https://ui-avatars.com/api/?name=${client.name}`
+                        }
+                        alt={client.name}
+                      />
                     </div>
                     <div>
                       <CardTitle className="text-lg">{client.name}</CardTitle>
-                      <Badge variant={client.is_active ? "success" : "secondary"}>
+                      <Badge
+                        variant={client.is_active ? "success" : "secondary"}
+                      >
                         {client.is_active ? "Ativo" : "Inativo"}
                       </Badge>
                     </div>
@@ -287,11 +292,7 @@ export default function ClientsPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="avatar">Avatar</Label>
-            <Input
-              id="avatar"
-              type="file"
-              onChange={handleAvatarChange}
-            />
+            <Input id="avatar" type="file" onChange={handleAvatarChange} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="name">Nome</Label>
@@ -314,7 +315,6 @@ export default function ClientsPage() {
                 setFormData({ ...formData, email: e.target.value })
               }
               required
-              disabled={!!editingClient}
             />
           </div>
           <div className="space-y-2">
@@ -339,6 +339,24 @@ export default function ClientsPage() {
               />
             </div>
           </div>
+          {editingClient && (
+            <div className="space-y-2">
+              <Label htmlFor="password">Nova Senha (opcional)</Label>
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  placeholder="Deixe em branco para não alterar"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          )}
           <div className="flex gap-2">
             <Button
               type="button"
