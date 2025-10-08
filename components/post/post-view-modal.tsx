@@ -5,15 +5,18 @@ import { Post } from "@/lib/types";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { PlatformButton } from "@/components/ui/platform-button";
 import { formatDateTime } from "@/lib/utils";
-import { Edit, Calendar, Image as ImageIcon } from "lucide-react";
+import { Edit, Calendar, Image as ImageIcon, CheckCircle, XCircle } from "lucide-react";
 
 interface PostViewModalProps {
   post: Post;
   isOpen: boolean;
   onClose: () => void;
   onEdit?: () => void;
+  onApprove?: (post: Post) => void;
+  onReject?: (post: Post, feedback: string) => void;
   showEditButton?: boolean;
 }
 
@@ -22,8 +25,12 @@ export function PostViewModal({
   isOpen,
   onClose,
   onEdit,
+  onApprove,
+  onReject,
   showEditButton = true,
 }: PostViewModalProps) {
+  const [feedback, setFeedback] = useState("");
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; label: string }> = {
       draft: { variant: "secondary", label: "Rascunho" },
@@ -146,6 +153,38 @@ export function PostViewModal({
             />
           </div>
         </div>
+
+        {/* Actions for client review */}
+        {onApprove && onReject && post.status === 'pending' && (
+          <div className="space-y-4 pt-4 border-t">
+            <div>
+              <h3 className="font-medium mb-2">Feedback (opcional)</h3>
+              <Textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="Adicione comentários ou sugestões..."
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                onClick={() => onReject(post, feedback)}
+                className="flex-1 gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Reprovar
+              </Button>
+              <Button
+                onClick={() => onApprove(post)}
+                className="flex-1 gap-2"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Aprovar
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );
@@ -158,4 +197,3 @@ function Label({ children, className = "", ...props }: any) {
     </label>
   );
 }
-

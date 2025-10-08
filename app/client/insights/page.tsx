@@ -7,21 +7,25 @@ import { ClientLayout } from "@/components/layout/client-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Lightbulb, Send } from "lucide-react";
+import { Lightbulb, Send, Edit, Trash2 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { Insight } from "@/lib/types";
+import { useInsightsStore } from "@/store/useInsightsStore";
 
 export default function ClientInsightsPage() {
   const supabase = createClient();
   const { user } = useAuthStore();
+  const { setLastViewed } = useInsightsStore();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [clientId, setClientId] = useState<string | null>(null);
   const [newInsight, setNewInsight] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingInsight, setEditingInsight] = useState<Insight | null>(null);
 
   useEffect(() => {
     loadClientData();
+    setLastViewed(new Date());
   }, []);
 
   useEffect(() => {
@@ -70,28 +74,54 @@ export default function ClientInsightsPage() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from("insights")
-        .insert({
-          client_id: clientId,
-          content: newInsight,
-          created_by: user.id,
-        });
+      if (editingInsight) {
+        const { error } = await supabase
+          .from("insights")
+          .update({ content: newInsight })
+          .eq("id", editingInsight.id);
+        if (error) throw error;
+        toast.success("Insight atualizado!");
+      } else {
+        const { error } = await supabase
+          .from("insights")
+          .insert({
+            client_id: clientId,
+            content: newInsight,
+            created_by: user.id,
+          });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Notify admin
-      const { notifyNewInsight } = await import("@/lib/notifications");
-      await notifyNewInsight(clientId, user.id);
+        // Notify admin
+        const { notifyNewInsight } = await import("@/lib/notifications");
+        await notifyNewInsight(clientId, user.id);
+        toast.success("Ideia compartilhada!");
+      }
 
-      toast.success("Ideia compartilhada com sucesso!");
       setNewInsight("");
+      setEditingInsight(null);
       loadInsights();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao compartilhar ideia");
+      toast.error("Erro ao salvar ideia");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+  
+  const handleEdit = (insight: Insight) => {
+    setEditingInsight(insight);
+    setNewInsight(insight.content);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que quer excluir este insight?")) return;
+    const { error } = await supabase.from("insights").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir insight");
+    } else {
+      toast.success("Insight excluído!");
+      loadInsights();
     }
   };
 
@@ -111,7 +141,7 @@ export default function ClientInsightsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lightbulb className="h-5 w-5" />
-              Compartilhar Nova Ideia
+              {editingInsight ? "Editar Ideia" : "Compartilhar Nova Ideia"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -123,10 +153,17 @@ export default function ClientInsightsPage() {
                 rows={4}
                 required
               />
-              <Button type="submit" disabled={isSubmitting} className="gap-2">
-                <Send className="h-4 w-4" />
-                {isSubmitting ? "Enviando..." : "Compartilhar Ideia"}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={isSubmitting} className="gap-2">
+                  <Send className="h-4 w-4" />
+                  {isSubmitting ? "Enviando..." : (editingInsight ? "Atualizar Ideia" : "Compartilhar Ideia")}
+                </Button>
+                {editingInsight && (
+                  <Button variant="outline" onClick={() => { setEditingInsight(null); setNewInsight(""); }}>
+                    Cancelar Edição
+                  </Button>
+                )}
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -152,7 +189,7 @@ export default function ClientInsightsPage() {
                     key={insight.id}
                     className="border rounded-lg p-4 space-y-2"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
                           {insight.user?.full_name?.[0] || "?"}
@@ -166,6 +203,24 @@ export default function ClientInsightsPage() {
                           </p>
                         </div>
                       </div>
+                      {user?.id === insight.created_by && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(insight)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(insight.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <p className="text-sm whitespace-pre-wrap pl-10">
                       {insight.content}
@@ -180,4 +235,3 @@ export default function ClientInsightsPage() {
     </ClientLayout>
   );
 }
-

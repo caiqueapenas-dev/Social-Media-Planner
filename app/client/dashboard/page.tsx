@@ -7,8 +7,7 @@ import { ClientLayout } from "@/components/layout/client-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
-import { Textarea } from "@/components/ui/textarea";
+import { PostViewModal } from "@/components/post/post-view-modal";
 import { Calendar, CheckCircle, Clock, Eye } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { Post } from "@/lib/types";
@@ -21,7 +20,6 @@ export default function ClientDashboard() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [feedback, setFeedback] = useState("");
 
   useEffect(() => {
     loadUser();
@@ -77,9 +75,6 @@ export default function ClientDashboard() {
   const approvedPosts = posts.filter(
     (p) => p.status === "approved" && new Date(p.scheduled_date) > new Date()
   ).slice(0, 5);
-  const recentPosts = posts.filter(
-    (p) => p.status === "published" || new Date(p.scheduled_date) < new Date()
-  ).slice(0, 5);
 
   const handleApprove = async (post: Post) => {
     const { error } = await supabase
@@ -92,14 +87,12 @@ export default function ClientDashboard() {
       return;
     }
 
-    // Log edit history
     await supabase.from("edit_history").insert({
       post_id: post.id,
       edited_by: user?.id,
       changes: { status: { from: post.status, to: "approved" } },
     });
 
-    // Notify admin
     const { notifyPostApproved } = await import("@/lib/notifications");
     await notifyPostApproved(post.id, post.client_id);
 
@@ -108,7 +101,7 @@ export default function ClientDashboard() {
     setIsReviewModalOpen(false);
   };
 
-  const handleReject = async (post: Post) => {
+  const handleReject = async (post: Post, feedback: string) => {
     const { error } = await supabase
       .from("posts")
       .update({ status: "rejected" })
@@ -119,14 +112,12 @@ export default function ClientDashboard() {
       return;
     }
 
-    // Log edit history
     await supabase.from("edit_history").insert({
       post_id: post.id,
       edited_by: user?.id,
       changes: { status: { from: post.status, to: "rejected" }, feedback },
     });
 
-    // Add comment with feedback
     if (feedback) {
       await supabase.from("post_comments").insert({
         post_id: post.id,
@@ -135,12 +126,10 @@ export default function ClientDashboard() {
       });
     }
 
-    // Notify admin
     const { notifyPostRejected } = await import("@/lib/notifications");
     await notifyPostRejected(post.id, post.client_id);
 
     toast.success("Post reprovado. Feedback enviado!");
-    setFeedback("");
     loadPosts();
     setIsReviewModalOpen(false);
   };
@@ -319,84 +308,18 @@ export default function ClientDashboard() {
 
       {/* Review Modal */}
       {selectedPost && (
-        <Modal
+        <PostViewModal
+          post={selectedPost}
           isOpen={isReviewModalOpen}
           onClose={() => {
             setIsReviewModalOpen(false);
             setSelectedPost(null);
-            setFeedback("");
           }}
-          title="Revisar Post"
-          size="lg"
-        >
-          <div className="space-y-6">
-            {/* Media */}
-            {selectedPost.media_urls && selectedPost.media_urls.length > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                {selectedPost.media_urls.map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Media ${i + 1}`}
-                    className="w-full rounded-lg"
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Caption */}
-            <div>
-              <h3 className="font-medium mb-2">Legenda</h3>
-              <p className="text-sm whitespace-pre-wrap">{selectedPost.caption}</p>
-            </div>
-
-            {/* Info */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Tipo:</span>
-                <p className="capitalize">{selectedPost.post_type}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Plataformas:</span>
-                <p className="capitalize">{selectedPost.platforms.join(", ")}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Agendado para:</span>
-                <p>{formatDateTime(selectedPost.scheduled_date)}</p>
-              </div>
-            </div>
-
-            {/* Feedback */}
-            <div>
-              <h3 className="font-medium mb-2">Feedback (opcional)</h3>
-              <Textarea
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                placeholder="Adicione comentários ou sugestões..."
-                rows={3}
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              <Button
-                variant="destructive"
-                onClick={() => handleReject(selectedPost)}
-                className="flex-1"
-              >
-                Reprovar
-              </Button>
-              <Button
-                onClick={() => handleApprove(selectedPost)}
-                className="flex-1"
-              >
-                Aprovar
-              </Button>
-            </div>
-          </div>
-        </Modal>
+          onApprove={() => handleApprove(selectedPost)}
+          onReject={handleReject}
+          showEditButton={false}
+        />
       )}
     </ClientLayout>
   );
 }
-

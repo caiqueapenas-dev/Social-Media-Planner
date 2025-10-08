@@ -12,7 +12,7 @@ import { PlatformButton } from "@/components/ui/platform-button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { SortableImage } from "@/components/post/sortable-image";
 import { useDropzone } from "react-dropzone";
-import { Upload, Hash, FileText, Sparkles } from "lucide-react";
+import { Upload, Hash, FileText, Sparkles, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { uploadToCloudinary } from "@/lib/utils";
 import { PostType, Platform, CaptionTemplate, HashtagGroup } from "@/lib/types";
@@ -31,14 +31,16 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
+import { Modal } from "@/components/ui/modal";
 
 interface PostFormProps {
   onSuccess: () => void;
   onCancel: () => void;
   initialData?: any;
+  onDelete?: (id: string) => void;
 }
 
-export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
+export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFormProps) {
   const supabase = createClient();
   const { user } = useAuthStore();
   const { clients } = useClientsStore();
@@ -47,6 +49,8 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
   const [mediaPreviews, setMediaPreviews] = useState<string[]>(initialData?.media_urls || []);
   const [templates, setTemplates] = useState<CaptionTemplate[]>([]);
   const [hashtagGroups, setHashtagGroups] = useState<HashtagGroup[]>([]);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     client_id: initialData?.client_id || "",
@@ -57,7 +61,6 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
     status: initialData?.status || "draft",
   });
 
-  // Drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -65,14 +68,12 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
     })
   );
 
-  // Load templates and hashtags when client is selected
   useEffect(() => {
     if (formData.client_id && user) {
       loadTemplatesAndHashtags();
     }
   }, [formData.client_id, user]);
 
-  // Auto-detect carousel when multiple images
   useEffect(() => {
     const totalMedia = mediaPreviews.length + mediaFiles.length;
     if (totalMedia > 1 && formData.post_type === "photo") {
@@ -82,22 +83,20 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
   }, [mediaPreviews.length, mediaFiles.length]);
 
   const loadTemplatesAndHashtags = async () => {
-    // Load caption templates for this client
     const { data: templatesData } = await supabase
       .from("caption_templates")
       .select("*")
-      .or(`admin_id.eq.${user?.id},client_id.eq.${formData.client_id}`)
+      .eq("admin_id", user?.id)
       .order("created_at", { ascending: false });
 
     if (templatesData) {
       setTemplates(templatesData);
     }
 
-    // Load hashtag groups for this client
     const { data: hashtagsData } = await supabase
       .from("hashtag_groups")
       .select("*")
-      .or(`admin_id.eq.${user?.id},client_id.eq.${formData.client_id}`)
+      .eq("admin_id", user?.id)
       .order("created_at", { ascending: false });
 
     if (hashtagsData) {
@@ -155,6 +154,7 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
       caption: prev.caption + (prev.caption ? "\n\n" : "") + template.content
     }));
     toast.success("Template inserido!");
+    setIsTemplateModalOpen(false);
   };
 
   const insertHashtags = (group: HashtagGroup) => {
@@ -164,13 +164,14 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
       caption: prev.caption + (prev.caption ? "\n\n" : "") + hashtags
     }));
     toast.success("Hashtags inseridas!");
+    setIsHashtagModalOpen(false);
   };
 
   const togglePlatform = (platform: Platform) => {
     setFormData(prev => ({
       ...prev,
       platforms: prev.platforms.includes(platform)
-        ? prev.platforms.filter(p => p !== platform)
+        ? prev.platforms.filter((p: Platform) => p !== platform)
         : [...prev.platforms, platform]
     }));
   };
@@ -217,7 +218,6 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
 
         if (error) throw error;
 
-        // Notify client if status is pending
         if (formData.status === "pending" && formData.client_id) {
           const { notifyNewPost } = await import("@/lib/notifications");
           await notifyNewPost(formData.client_id);
@@ -246,205 +246,173 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Client Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="client_id">Cliente *</Label>
-        <div className="relative">
-          {selectedClient && (
-            <div
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full"
-              style={{ backgroundColor: selectedClient.brand_color }}
+      <Modal isOpen={isTemplateModalOpen} onClose={() => setIsTemplateModalOpen(false)} title="Templates de Legenda">
+        <div className="space-y-2">
+          {templates.map(template => (
+            <Button key={template.id} variant="outline" onClick={() => insertTemplate(template)}>
+              {template.title}
+            </Button>
+          ))}
+        </div>
+      </Modal>
+      <Modal isOpen={isHashtagModalOpen} onClose={() => setIsHashtagModalOpen(false)} title="Grupos de Hashtags">
+        <div className="space-y-2">
+          {hashtagGroups.map(group => (
+            <Button key={group.id} variant="outline" onClick={() => insertHashtags(group)}>
+              {group.title}
+            </Button>
+          ))}
+        </div>
+      </Modal>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left Column */}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="client_id">Cliente *</Label>
+            <div className="relative">
+              {selectedClient && (
+                <div
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full"
+                  style={{ backgroundColor: selectedClient.brand_color }}
+                />
+              )}
+              <Select
+                id="client_id"
+                value={formData.client_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, client_id: e.target.value })
+                }
+                options={[
+                  { value: "", label: "Selecione um cliente" },
+                  ...clients.map((c) => ({ 
+                    value: c.id, 
+                    label: `${c.name}` 
+                  })),
+                ]}
+                required
+                className={selectedClient ? "pl-12" : ""}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="post_type">Tipo de Post *</Label>
+            <Select
+              id="post_type"
+              value={formData.post_type}
+              onChange={(e) =>
+                setFormData({ ...formData, post_type: e.target.value as PostType })
+              }
+              options={postTypeOptions}
+              required
             />
-          )}
-          <Select
-            id="client_id"
-            value={formData.client_id}
-            onChange={(e) =>
-              setFormData({ ...formData, client_id: e.target.value })
-            }
-            options={[
-              { value: "", label: "Selecione um cliente" },
-              ...clients.map((c) => ({ 
-                value: c.id, 
-                label: `${c.name}` 
-              })),
-            ]}
+            {formData.post_type === "carousel" && mediaPreviews.length > 1 && (
+              <p className="text-xs text-muted-foreground">
+                <Sparkles className="h-3 w-3 inline mr-1" />
+                Carrossel detectado automaticamente
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Plataformas *</Label>
+            <div className="flex gap-2">
+              <PlatformButton
+                platform="instagram"
+                selected={formData.platforms.includes("instagram")}
+                onToggle={() => togglePlatform("instagram")}
+              />
+              <PlatformButton
+                platform="facebook"
+                selected={formData.platforms.includes("facebook")}
+                onToggle={() => togglePlatform("facebook")}
+              />
+            </div>
+          </div>
+          
+          <DateTimePicker
+            value={formData.scheduled_date}
+            onChange={(value) => setFormData({ ...formData, scheduled_date: value })}
+            label="Data e Hora de Agendamento"
             required
-            className={selectedClient ? "pl-12" : ""}
           />
-        </div>
-      </div>
 
-      {/* Post Type */}
-      <div className="space-y-2">
-        <Label htmlFor="post_type">Tipo de Post *</Label>
-        <Select
-          id="post_type"
-          value={formData.post_type}
-          onChange={(e) =>
-            setFormData({ ...formData, post_type: e.target.value as PostType })
-          }
-          options={postTypeOptions}
-          required
-        />
-        {formData.post_type === "carousel" && mediaPreviews.length > 1 && (
-          <p className="text-xs text-muted-foreground">
-            <Sparkles className="h-3 w-3 inline mr-1" />
-            Carrossel detectado automaticamente
-          </p>
-        )}
-      </div>
-
-      {/* Platforms */}
-      <div className="space-y-2">
-        <Label>Plataformas *</Label>
-        <div className="flex gap-2">
-          <PlatformButton
-            platform="instagram"
-            selected={formData.platforms.includes("instagram")}
-            onToggle={() => togglePlatform("instagram")}
-          />
-          <PlatformButton
-            platform="facebook"
-            selected={formData.platforms.includes("facebook")}
-            onToggle={() => togglePlatform("facebook")}
-          />
-        </div>
-      </div>
-
-      {/* Caption with Templates */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="caption">Legenda *</Label>
-          <div className="flex gap-2">
-            {templates.length > 0 && (
-              <div className="relative group">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                >
-                  <FileText className="h-3 w-3" />
-                  Templates
-                </Button>
-                <div className="absolute right-0 mt-1 w-64 bg-card border rounded-lg shadow-lg z-10 hidden group-hover:block">
-                  <div className="p-2 space-y-1 max-h-60 overflow-y-auto">
-                    {templates.map((template) => (
-                      <button
-                        key={template.id}
-                        type="button"
-                        onClick={() => insertTemplate(template)}
-                        className="w-full text-left px-3 py-2 text-sm rounded hover:bg-accent transition-colors"
-                      >
-                        {template.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+          <div className="space-y-2">
+            <Label htmlFor="caption">Legenda *</Label>
+            <div className="relative">
+              <Textarea
+                id="caption"
+                value={formData.caption}
+                onChange={(e) =>
+                  setFormData({ ...formData, caption: e.target.value })
+                }
+                rows={8}
+                placeholder="Escreva a legenda do post..."
+                required
+              />
+              <div className="absolute bottom-2 right-2 flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsTemplateModalOpen(true)}>Templates</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsHashtagModalOpen(true)}>Hashtags</Button>
               </div>
-            )}
-            {hashtagGroups.length > 0 && (
-              <div className="relative group">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                >
-                  <Hash className="h-3 w-3" />
-                  Hashtags
-                </Button>
-                <div className="absolute right-0 mt-1 w-64 bg-card border rounded-lg shadow-lg z-10 hidden group-hover:block">
-                  <div className="p-2 space-y-1 max-h-60 overflow-y-auto">
-                    {hashtagGroups.map((group) => (
-                      <button
-                        key={group.id}
-                        type="button"
-                        onClick={() => insertHashtags(group)}
-                        className="w-full text-left px-3 py-2 text-sm rounded hover:bg-accent transition-colors"
-                      >
-                        {group.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         </div>
-        <Textarea
-          id="caption"
-          value={formData.caption}
-          onChange={(e) =>
-            setFormData({ ...formData, caption: e.target.value })
-          }
-          rows={6}
-          placeholder="Escreva a legenda do post..."
-          required
-        />
-      </div>
 
-      {/* Date Time Picker */}
-      <DateTimePicker
-        value={formData.scheduled_date}
-        onChange={(value) => setFormData({ ...formData, scheduled_date: value })}
-        label="Data e Hora de Agendamento"
-        required
-      />
-
-      {/* Media Upload with Drag and Drop */}
-      <div className="space-y-2">
-        <Label>Mídia</Label>
-        <div
-          {...getRootProps()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            isDragActive ? "border-primary bg-primary/5" : "border-border"
-          }`}
-        >
-          <input {...getInputProps()} />
-          <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Arraste arquivos aqui ou clique para selecionar
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Imagens ou vídeos até 50MB
-          </p>
-        </div>
-
-        {mediaPreviews.length > 0 && (
-          <div>
-            <Label className="mb-2 block">
-              {mediaPreviews.length} arquivo(s) - Arraste para reordenar
-            </Label>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+        {/* Right Column */}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label>Mídia</Label>
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                isDragActive ? "border-primary bg-primary/5" : "border-border"
+              }`}
             >
-              <SortableContext
-                items={mediaPreviews.map((_, i) => `media-${i}`)}
-                strategy={rectSortingStrategy}
-              >
-                <div className="grid grid-cols-3 gap-4">
-                  {mediaPreviews.map((preview, index) => (
-                    <SortableImage
-                      key={`media-${index}`}
-                      id={`media-${index}`}
-                      url={preview}
-                      index={index}
-                      onRemove={() => removeMedia(index)}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          </div>
-        )}
-      </div>
+              <input {...getInputProps()} />
+              <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Arraste arquivos aqui ou clique para selecionar
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Imagens ou vídeos até 50MB
+              </p>
+            </div>
 
-      {/* Actions */}
-      <div className="flex gap-2">
+            {mediaPreviews.length > 0 && (
+              <div>
+                <Label className="mb-2 block">
+                  {mediaPreviews.length} arquivo(s) - Arraste para reordenar
+                </Label>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={mediaPreviews.map((_, i) => `media-${i}`)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <div className="grid grid-cols-3 gap-4">
+                      {mediaPreviews.map((preview, index) => (
+                        <SortableImage
+                          key={`media-${index}`}
+                          id={`media-${index}`}
+                          url={preview}
+                          index={index}
+                          onRemove={() => removeMedia(index)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex gap-2 pt-6 border-t">
         <Button
           type="button"
           variant="outline"
@@ -454,6 +422,18 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
         >
           Cancelar
         </Button>
+        {initialData && onDelete && (
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => onDelete(initialData.id)}
+            className="flex-1"
+            disabled={isSubmitting}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir
+          </Button>
+        )}
         <Button
           type="submit"
           onClick={() => setFormData({ ...formData, status: "draft" })}
@@ -475,4 +455,3 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
     </form>
   );
 }
-

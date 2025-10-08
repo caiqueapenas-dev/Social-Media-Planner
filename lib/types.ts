@@ -22,6 +22,7 @@ export interface Client {
   user_id: string;
   brand_color: string;
   is_active: boolean;
+  avatar_url?: string;
   logo_url?: string;
   created_at: string;
   updated_at: string;
@@ -73,6 +74,7 @@ export interface SpecialDate {
   title: string;
   date: string;
   description?: string;
+  recurrent?: boolean;
   created_at: string;
 }
 
@@ -111,4 +113,3 @@ export interface AdminProfile {
   created_at: string;
   updated_at: string;
 }
-

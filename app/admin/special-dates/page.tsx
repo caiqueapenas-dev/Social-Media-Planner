@@ -29,6 +29,7 @@ export default function SpecialDatesPage() {
     title: "",
     date: "",
     description: "",
+    recurrent: false,
   });
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export default function SpecialDatesPage() {
           title: formData.title,
           date: formData.date,
           description: formData.description,
+          recurrent: formData.recurrent,
         })
         .eq("id", editingDate.id);
 
@@ -132,6 +134,7 @@ export default function SpecialDatesPage() {
       title: date.title,
       date: date.date,
       description: date.description || "",
+      recurrent: date.recurrent || false,
     });
     setIsModalOpen(true);
   };
@@ -143,6 +146,7 @@ export default function SpecialDatesPage() {
       title: "",
       date: "",
       description: "",
+      recurrent: false,
     });
   };
 
@@ -317,6 +321,17 @@ export default function SpecialDatesPage() {
               rows={3}
               placeholder="Informações adicionais sobre a data..."
             />
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="recurrent"
+                checked={formData.recurrent}
+                onChange={(e) =>
+                  setFormData({ ...formData, recurrent: e.target.checked })
+                }
+              />
+              <Label htmlFor="recurrent">Repetir anualmente</Label>
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -340,4 +355,3 @@ export default function SpecialDatesPage() {
     </AdminLayout>
   );
 }
-

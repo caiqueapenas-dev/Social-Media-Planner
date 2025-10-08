@@ -13,20 +13,39 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Hash } from "lucide-react";
 import toast from "react-hot-toast";
 import { CaptionTemplate, HashtagGroup } from "@/lib/types";
+import { uploadToCloudinary } from "@/lib/utils";
 
 export default function SettingsPage() {
   const supabase = createClient();
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [captionTemplates, setCaptionTemplates] = useState<CaptionTemplate[]>([]);
   const [hashtagGroups, setHashtagGroups] = useState<HashtagGroup[]>([]);
   
   const [newTemplate, setNewTemplate] = useState({ title: "", content: "" });
   const [newHashtagGroup, setNewHashtagGroup] = useState({ title: "", hashtags: "" });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   useEffect(() => {
     loadCaptionTemplates();
     loadHashtagGroups();
   }, []);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAvatarFile(e.target.files[0]);
+      const avatarUrl = await uploadToCloudinary(e.target.files[0]);
+      const { data, error } = await supabase
+        .from("users")
+        .update({ avatar_url: avatarUrl })
+        .eq("id", user!.id);
+      if (!error) {
+        setUser({ ...user!, avatar_url: avatarUrl });
+        toast.success("Avatar atualizado!");
+      } else {
+        toast.error("Erro ao atualizar avatar.");
+      }
+    }
+  };
 
   const loadCaptionTemplates = async () => {
     const { data } = await supabase
@@ -141,11 +160,23 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="templates" className="space-y-4">
+        <Tabs defaultValue="profile" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="profile">Perfil</TabsTrigger>
             <TabsTrigger value="templates">Templates de Legenda</TabsTrigger>
             <TabsTrigger value="hashtags">Grupos de Hashtags</TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="profile" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Foto de Perfil</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input type="file" onChange={handleAvatarChange} />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="templates" className="space-y-4">
             {/* Add new template */}
@@ -325,4 +356,3 @@ export default function SettingsPage() {
     </AdminLayout>
   );
 }
-

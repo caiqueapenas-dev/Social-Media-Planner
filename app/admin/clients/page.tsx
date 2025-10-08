@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Mail, Building } from "lucide-react";
 import toast from "react-hot-toast";
 import { Client } from "@/lib/types";
-import { getInitials } from "@/lib/utils";
+import { getInitials, uploadToCloudinary } from "@/lib/utils";
 
 export default function ClientsPage() {
   const supabase = createClient();
@@ -24,7 +24,9 @@ export default function ClientsPage() {
     name: "",
     email: "",
     brand_color: "#8b5cf6",
+    avatar_url: "",
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -41,13 +43,26 @@ export default function ClientsPage() {
     }
   };
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAvatarFile(e.target.files[0]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    let avatarUrl = formData.avatar_url;
+    if (avatarFile) {
+      avatarUrl = await uploadToCloudinary(avatarFile);
+    }
+
+    const clientData = { ...formData, avatar_url: avatarUrl };
 
     if (editingClient) {
       const { error } = await supabase
         .from("clients")
-        .update(formData)
+        .update(clientData)
         .eq("id", editingClient.id);
 
       if (error) {
@@ -55,7 +70,7 @@ export default function ClientsPage() {
         return;
       }
 
-      updateClient(editingClient.id, formData);
+      updateClient(editingClient.id, clientData);
       toast.success("Cliente atualizado com sucesso!");
     } else {
       // First create user account for client
@@ -78,6 +93,7 @@ export default function ClientsPage() {
           email: formData.email,
           role: "client",
           full_name: formData.name,
+          avatar_url: avatarUrl,
         });
 
       if (userError) {
@@ -86,10 +102,10 @@ export default function ClientsPage() {
       }
 
       // Create client record
-      const { data: clientData, error: clientError } = await supabase
+      const { data: newClientData, error: clientError } = await supabase
         .from("clients")
         .insert({
-          ...formData,
+          ...clientData,
           user_id: authData.user.id,
         })
         .select()
@@ -100,7 +116,7 @@ export default function ClientsPage() {
         return;
       }
 
-      addClient(clientData);
+      addClient(newClientData);
       toast.success("Cliente criado com sucesso!");
     }
 
@@ -131,6 +147,7 @@ export default function ClientsPage() {
       name: client.name,
       email: client.email,
       brand_color: client.brand_color,
+      avatar_url: client.avatar_url || "",
     });
     setIsModalOpen(true);
   };
@@ -141,7 +158,9 @@ export default function ClientsPage() {
       name: "",
       email: "",
       brand_color: "#8b5cf6",
+      avatar_url: "",
     });
+    setAvatarFile(null);
   };
 
   const toggleClientStatus = async (client: Client) => {
@@ -189,11 +208,8 @@ export default function ClientsPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: client.brand_color }}
-                    >
-                      {getInitials(client.name)}
+                    <div className="w-12 h-12 rounded-full overflow-hidden">
+                      <img src={client.avatar_url || `https://ui-avatars.com/api/?name=${client.name}`} alt={client.name} />
                     </div>
                     <div>
                       <CardTitle className="text-lg">{client.name}</CardTitle>
@@ -270,6 +286,14 @@ export default function ClientsPage() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="avatar">Avatar</Label>
+            <Input
+              id="avatar"
+              type="file"
+              onChange={handleAvatarChange}
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="name">Nome</Label>
             <Input
               id="name"
@@ -336,4 +360,3 @@ export default function ClientsPage() {
     </AdminLayout>
   );
 }
-

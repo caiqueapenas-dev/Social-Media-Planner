@@ -96,10 +96,10 @@ export function NotificationBell() {
       {showDropdown && (
         <>
           <div
-            className="fixed inset-0 z-[100]"
+            className="fixed inset-0 z-40"
             onClick={() => setShowDropdown(false)}
           />
-          <div className="absolute right-0 mt-2 w-80 bg-card border rounded-lg shadow-lg z-[101] max-h-96 overflow-y-auto">
+          <div className="absolute right-0 mt-2 w-80 bg-card border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold">Notificações</h3>
               {unreadCount > 0 && (
@@ -149,4 +149,3 @@ export function NotificationBell() {
     </div>
   );
 }
-

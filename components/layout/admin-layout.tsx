@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useInsightsStore } from "@/store/useInsightsStore";
 import { Button } from "@/components/ui/button";
 import { 
   Calendar, 
@@ -16,14 +17,13 @@ import {
   X,
   Sun,
   Moon,
-  Lightbulb
+  Lightbulb,
+  Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import toast from "react-hot-toast";
-
-import { Star } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -36,11 +36,27 @@ const navigation = [
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [newInsightsCount, setNewInsightsCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
   const { user } = useAuthStore();
+  const { lastViewed } = useInsightsStore();
   const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    if (user) {
+      fetchNewInsightsCount();
+    }
+  }, [user, lastViewed]);
+
+  const fetchNewInsightsCount = async () => {
+    const { data, count } = await supabase
+      .from("insights")
+      .select("*", { count: "exact", head: true })
+      .gt("created_at", lastViewed?.toISOString() || new Date(0).toISOString());
+    setNewInsightsCount(count || 0);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -101,6 +117,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="h-5 w-5" />
                   {item.name}
+                  {item.name === "Insights" && newInsightsCount > 0 && (
+                    <span className="ml-auto text-xs bg-destructive text-destructive-foreground rounded-full px-2">
+                      {newInsightsCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -165,4 +186,3 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

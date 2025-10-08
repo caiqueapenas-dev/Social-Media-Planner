@@ -15,16 +15,18 @@ import {
   Clock, 
   XCircle, 
   Plus,
-  AlertCircle
+  AlertCircle,
+  Star
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
-import { Post } from "@/lib/types";
+import { Post, SpecialDate } from "@/lib/types";
 import Link from "next/link";
 
 export default function AdminDashboardImproved() {
   const supabase = createClient();
   const { user, setUser, setLoading } = useAuthStore();
   const { posts, setPosts } = usePostsStore();
+  const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [stats, setStats] = useState({
     pending: 0,
     approved: 0,
@@ -35,6 +37,7 @@ export default function AdminDashboardImproved() {
   useEffect(() => {
     loadUser();
     loadPosts();
+    loadSpecialDates();
   }, []);
 
   useEffect(() => {
@@ -76,6 +79,13 @@ export default function AdminDashboardImproved() {
 
     if (data) {
       setPosts(data as unknown as Post[]);
+    }
+  };
+
+  const loadSpecialDates = async () => {
+    const { data } = await supabase.from("special_dates").select("*");
+    if (data) {
+      setSpecialDates(data);
     }
   };
 
@@ -288,8 +298,37 @@ export default function AdminDashboardImproved() {
             )}
           </CardContent>
         </Card>
+        
+        {/* Special Dates */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-500" />
+              Datas Especiais
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {specialDates.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhuma data especial próxima
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {specialDates.map((date) => (
+                  <div key={date.id} className="flex items-start gap-4 p-4 rounded-lg border">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-sm">{date.title}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{date.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );
 }
-

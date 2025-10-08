@@ -9,19 +9,20 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { Badge } from "@/components/ui/badge";
 import { PostForm } from "@/components/post/post-form";
 import { AdminCalendarDay } from "@/components/calendar/admin-calendar-day";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { Post } from "@/lib/types";
+import { Post, SpecialDate } from "@/lib/types";
+import toast from "react-hot-toast";
 
 export default function CalendarPage() {
   const searchParams = useSearchParams();
   const supabase = createClient();
   const { posts, setPosts, selectedDate, setSelectedDate } = usePostsStore();
   const { clients, setClients } = useClientsStore();
+  const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -29,8 +30,8 @@ export default function CalendarPage() {
   useEffect(() => {
     loadClients();
     loadPosts();
+    loadSpecialDates();
     
-    // Open new post modal if query param is present
     if (searchParams?.get("newPost") === "true") {
       setIsPostModalOpen(true);
     }
@@ -62,15 +63,25 @@ export default function CalendarPage() {
     }
   };
 
+  const loadSpecialDates = async () => {
+    const { data } = await supabase.from("special_dates").select("*");
+    if (data) {
+      setSpecialDates(data);
+    }
+  };
+
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Get posts for a specific day
   const getPostsForDay = (day: Date) => {
     return posts.filter((post) =>
       isSameDay(new Date(post.scheduled_date), day)
     );
+  };
+
+  const getSpecialDateForDay = (day: Date) => {
+    return specialDates.find((sd) => isSameDay(new Date(sd.date), day));
   };
 
   const previousMonth = () => {
@@ -91,16 +102,17 @@ export default function CalendarPage() {
     setSelectedPost(post);
     setIsPostModalOpen(true);
   };
-
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      draft: "bg-gray-500",
-      pending: "bg-yellow-500",
-      approved: "bg-green-500",
-      rejected: "bg-red-500",
-      published: "bg-blue-500",
-    };
-    return colors[status] || colors.draft;
+  
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este post?")) return;
+    const { error } = await supabase.from("posts").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir post");
+    } else {
+      toast.success("Post excluído!");
+      loadPosts();
+      setIsPostModalOpen(false);
+    }
   };
 
   return (
@@ -156,31 +168,39 @@ export default function CalendarPage() {
 
           {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-2">
-            {/* Empty cells for days before month starts */}
             {Array.from({ length: monthStart.getDay() }).map((_, i) => (
               <div key={`empty-${i}`} className="aspect-square" />
             ))}
 
-            {/* Days of month */}
             {daysInMonth.map((day) => {
               const dayPosts = getPostsForDay(day);
+              const specialDate = getSpecialDateForDay(day);
               const isToday = isSameDay(day, new Date());
 
               return (
                 <div
                   key={day.toISOString()}
-                  className={`aspect-square border rounded-lg p-2 transition-colors ${
+                  className={`group aspect-square border rounded-lg p-2 transition-colors ${
                     isToday ? "border-primary border-2 bg-primary/5" : ""
                   } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""} ${
-                    dayPosts.length === 0 ? "hover:bg-accent/50 cursor-pointer" : ""
+                    "hover:bg-accent/50 cursor-pointer"
                   }`}
                   onClick={() => dayPosts.length === 0 && handleDayClick(day)}
                 >
-                  <div className="text-sm font-medium mb-1">
+                  <div className="text-sm font-medium mb-1 flex justify-between items-center">
                     {format(day, "d")}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100"
+                      onClick={() => handleDayClick(day)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                   <AdminCalendarDay
                     posts={dayPosts}
+                    specialDate={specialDate}
                     onPostClick={handlePostClick}
                     onEdit={(post) => {
                       setSelectedPost(post);
@@ -192,30 +212,6 @@ export default function CalendarPage() {
             })}
           </div>
         </Card>
-
-        {/* Legend */}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gray-500" />
-            <span className="text-sm">Rascunho</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-yellow-500" />
-            <span className="text-sm">Pendente</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="text-sm">Aprovado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500" />
-            <span className="text-sm">Rejeitado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
-            <span className="text-sm">Publicado</span>
-          </div>
-        </div>
       </div>
 
       {/* Post Modal */}
@@ -247,9 +243,9 @@ export default function CalendarPage() {
             setSelectedPost(null);
             setSelectedDate(null);
           }}
+          onDelete={handleDelete}
         />
       </Modal>
     </AdminLayout>
   );
 }
-

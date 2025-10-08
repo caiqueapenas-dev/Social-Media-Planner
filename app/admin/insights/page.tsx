@@ -10,23 +10,32 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Lightbulb, Send } from "lucide-react";
+import { Lightbulb, Send, Edit, Trash2 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { Insight } from "@/lib/types";
+import { useInsightsStore } from "@/store/useInsightsStore";
 
 export default function InsightsPage() {
   const supabase = createClient();
   const { clients, setClients } = useClientsStore();
   const { user } = useAuthStore();
+  const { setLastViewed } = useInsightsStore();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [newInsight, setNewInsight] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingInsight, setEditingInsight] = useState<Insight | null>(null);
 
   useEffect(() => {
     loadClients();
-    loadInsights();
+    setLastViewed(new Date());
+  }, []);
+
+  useEffect(() => {
+    if (selectedClientId) {
+      loadInsights();
+    }
   }, [selectedClientId]);
 
   const loadClients = async () => {
@@ -68,28 +77,54 @@ export default function InsightsPage() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from("insights")
-        .insert({
-          client_id: selectedClientId,
-          content: newInsight,
-          created_by: user.id,
-        });
+      if (editingInsight) {
+        const { error } = await supabase
+          .from("insights")
+          .update({ content: newInsight })
+          .eq("id", editingInsight.id);
+        if (error) throw error;
+        toast.success("Insight atualizado!");
+      } else {
+        const { error } = await supabase
+          .from("insights")
+          .insert({
+            client_id: selectedClientId,
+            content: newInsight,
+            created_by: user.id,
+          });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Notify client
-      const { notifyNewInsight } = await import("@/lib/notifications");
-      await notifyNewInsight(selectedClientId, user.id);
-
-      toast.success("Insight adicionado com sucesso!");
+        // Notify client
+        const { notifyNewInsight } = await import("@/lib/notifications");
+        await notifyNewInsight(selectedClientId, user.id);
+        toast.success("Insight adicionado!");
+      }
+      
       setNewInsight("");
+      setEditingInsight(null);
       loadInsights();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao adicionar insight");
+      toast.error("Erro ao salvar insight");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleEdit = (insight: Insight) => {
+    setEditingInsight(insight);
+    setNewInsight(insight.content);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que quer excluir este insight?")) return;
+    const { error } = await supabase.from("insights").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir insight");
+    } else {
+      toast.success("Insight excluído!");
+      loadInsights();
     }
   };
 
@@ -126,7 +161,7 @@ export default function InsightsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lightbulb className="h-5 w-5" />
-                  Adicionar Nova Ideia
+                  {editingInsight ? "Editar Ideia" : "Adicionar Nova Ideia"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -138,10 +173,17 @@ export default function InsightsPage() {
                     rows={4}
                     required
                   />
-                  <Button type="submit" disabled={isSubmitting} className="gap-2">
-                    <Send className="h-4 w-4" />
-                    {isSubmitting ? "Enviando..." : "Enviar Ideia"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={isSubmitting} className="gap-2">
+                      <Send className="h-4 w-4" />
+                      {isSubmitting ? "Enviando..." : (editingInsight ? "Atualizar Ideia" : "Enviar Ideia")}
+                    </Button>
+                    {editingInsight && (
+                      <Button variant="outline" onClick={() => { setEditingInsight(null); setNewInsight(""); }}>
+                        Cancelar Edição
+                      </Button>
+                    )}
+                  </div>
                 </form>
               </CardContent>
             </Card>
@@ -164,7 +206,7 @@ export default function InsightsPage() {
                         key={insight.id}
                         className="border rounded-lg p-4 space-y-2"
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div
                               className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
@@ -183,8 +225,26 @@ export default function InsightsPage() {
                               </p>
                             </div>
                           </div>
+                          {user?.id === insight.created_by && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(insight)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(insight.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-sm whitespace-pre-wrap">
+                        <p className="text-sm whitespace-pre-wrap pl-10">
                           {insight.content}
                         </p>
                       </div>
@@ -199,4 +259,3 @@ export default function InsightsPage() {
     </AdminLayout>
   );
 }
-

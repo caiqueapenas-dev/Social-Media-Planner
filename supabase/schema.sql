@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS public.special_dates (
   title TEXT NOT NULL,
   date DATE NOT NULL,
   description TEXT,
+recurrent BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
