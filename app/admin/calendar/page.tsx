@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePostsStore } from "@/store/usePostsStore";
@@ -14,15 +12,13 @@ import { AdminCalendarDay } from "@/components/calendar/admin-calendar-day";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { Post, SpecialDate } from "@/lib/types";
-import toast from "react-hot-toast";
+import { Post } from "@/lib/types";
 
-export default function CalendarPage() {
+function CalendarView() {
   const searchParams = useSearchParams();
   const supabase = createClient();
   const { posts, setPosts, selectedDate, setSelectedDate } = usePostsStore();
   const { clients, setClients } = useClientsStore();
-  const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -30,8 +26,8 @@ export default function CalendarPage() {
   useEffect(() => {
     loadClients();
     loadPosts();
-    loadSpecialDates();
     
+    // Open new post modal if query param is present
     if (searchParams?.get("newPost") === "true") {
       setIsPostModalOpen(true);
     }
@@ -63,31 +59,15 @@ export default function CalendarPage() {
     }
   };
 
-  const loadSpecialDates = async () => {
-    const { data } = await supabase.from("special_dates").select("*");
-    if (data) {
-      setSpecialDates(data);
-    }
-  };
-
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
+  // Get posts for a specific day
   const getPostsForDay = (day: Date) => {
     return posts.filter((post) =>
       isSameDay(new Date(post.scheduled_date), day)
     );
-  };
-
-  const getSpecialDateForDay = (day: Date) => {
-    return specialDates.find((sd) => {
-      const sdDate = new Date(sd.date + 'T00:00:00');
-      if (sd.recurrent) {
-        return sdDate.getUTCDate() === day.getUTCDate() && sdDate.getUTCMonth() === day.getUTCMonth();
-      }
-      return isSameDay(sdDate, day);
-    });
   };
 
   const previousMonth = () => {
@@ -96,10 +76,6 @@ export default function CalendarPage() {
 
   const nextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
-  };
-
-  const goToToday = () => {
-    setCurrentMonth(new Date());
   };
 
   const handleDayClick = (day: Date) => {
@@ -111,18 +87,6 @@ export default function CalendarPage() {
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
     setIsPostModalOpen(true);
-  };
-  
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este post?")) return;
-    const { error } = await supabase.from("posts").delete().eq("id", id);
-    if (error) {
-      toast.error("Erro ao excluir post");
-    } else {
-      toast.success("Post excluído!");
-      loadPosts();
-      setIsPostModalOpen(false);
-    }
   };
 
   return (
@@ -156,12 +120,9 @@ export default function CalendarPage() {
             <Button variant="outline" size="icon" onClick={previousMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold capitalize">
-                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-              </h2>
-              <Button variant="outline" onClick={goToToday}>Hoje</Button>
-            </div>
+            <h2 className="text-xl font-semibold">
+              {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+            </h2>
             <Button variant="outline" size="icon" onClick={nextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -181,40 +142,32 @@ export default function CalendarPage() {
 
           {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-2">
+            {/* Empty cells for days before month starts */}
             {Array.from({ length: monthStart.getDay() }).map((_, i) => (
               <div key={`empty-${i}`} className="aspect-square" />
             ))}
 
+            {/* Days of month */}
             {daysInMonth.map((day) => {
               const dayPosts = getPostsForDay(day);
-              const specialDate = getSpecialDateForDay(day);
               const isToday = isSameDay(day, new Date());
 
               return (
                 <div
                   key={day.toISOString()}
-                  className={`group aspect-square border rounded-lg p-2 transition-colors ${
+                  className={`aspect-square border rounded-lg p-2 transition-colors ${
                     isToday ? "border-primary border-2 bg-primary/5" : ""
                   } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""} ${
-                    "hover:bg-accent/50 cursor-pointer"
+                    dayPosts.length === 0 ? "hover:bg-accent/50 cursor-pointer" : ""
                   }`}
-                  onClick={() => (dayPosts.length === 0 && !specialDate) && handleDayClick(day)}
+                  onClick={() => dayPosts.length === 0 && handleDayClick(day)}
                 >
-                  <div className="text-sm font-medium mb-1 flex justify-between items-center">
+                  <div className="text-sm font-medium mb-1">
                     {format(day, "d")}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100"
-                      onClick={() => handleDayClick(day)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
                   </div>
                   <AdminCalendarDay
-                    day={day}
+  day={day}
                     posts={dayPosts}
-                    specialDate={specialDate}
                     onPostClick={handlePostClick}
                     onEdit={(post) => {
                       setSelectedPost(post);
@@ -226,6 +179,30 @@ export default function CalendarPage() {
             })}
           </div>
         </Card>
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-gray-500" />
+            <span className="text-sm">Rascunho</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-yellow-500" />
+            <span className="text-sm">Pendente</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <span className="text-sm">Aprovado</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-red-500" />
+            <span className="text-sm">Rejeitado</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <span className="text-sm">Publicado</span>
+          </div>
+        </div>
       </div>
 
       {/* Post Modal */}
@@ -257,9 +234,16 @@ export default function CalendarPage() {
             setSelectedPost(null);
             setSelectedDate(null);
           }}
-          onDelete={handleDelete}
         />
       </Modal>
     </AdminLayout>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={<div>Carregando calendário...</div>}>
+      <CalendarView />
+    </Suspense>
   );
 }
