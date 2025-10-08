@@ -7,15 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { PostViewModal } from "@/components/post/post-view-modal";
 import { formatDateTime } from "@/lib/utils";
 import { Calendar, Eye, Star } from "lucide-react";
+import { format } from "date-fns";
 
 interface AdminCalendarDayProps {
+  day: Date;
   posts: Post[];
   specialDate?: SpecialDate;
   onPostClick: (post: Post) => void;
   onEdit?: (post: Post) => void;
 }
 
-export function AdminCalendarDay({ posts, specialDate, onPostClick, onEdit }: AdminCalendarDayProps) {
+export function AdminCalendarDay({ day, posts, specialDate, onPostClick, onEdit }: AdminCalendarDayProps) {
   const [isListModalOpen, setIsListModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -23,7 +25,6 @@ export function AdminCalendarDay({ posts, specialDate, onPostClick, onEdit }: Ad
 
   if (posts.length === 0 && !specialDate) return null;
 
-  // Agrupar posts por cliente
   const postsByClient = posts.reduce((acc, post) => {
     const clientId = post.client_id;
     if (!acc[clientId]) {
@@ -39,14 +40,14 @@ export function AdminCalendarDay({ posts, specialDate, onPostClick, onEdit }: Ad
     count: clientPosts.length,
   }));
 
-  const handleClientClick = (client: any, clientPosts: Post[]) => {
+  const openModalForDay = () => {
+    setSelectedClient(null); // Clear specific client selection
+    setIsListModalOpen(true);
+  };
+
+  const openModalForClient = (client: any) => {
     setSelectedClient(client);
-    if (clientPosts.length === 1) {
-      setSelectedPost(clientPosts[0]);
-      setIsViewModalOpen(true);
-    } else {
-      setIsListModalOpen(true);
-    }
+    setIsListModalOpen(true);
   };
 
   const handlePostClickFromList = (post: Post) => {
@@ -68,18 +69,24 @@ export function AdminCalendarDay({ posts, specialDate, onPostClick, onEdit }: Ad
 
   return (
     <>
-      <div className="space-y-1">
+      <div 
+        className="space-y-1 h-full cursor-pointer" 
+        onClick={openModalForDay}
+      >
         {specialDate && (
           <div className="flex items-center gap-1 text-blue-500">
-            <Star className="h-4 w-4" />
-            <span className="text-xs">{specialDate.title}</span>
+            <Star className="h-4 w-4 fill-current" />
+            <span className="text-xs truncate">{specialDate.title}</span>
           </div>
         )}
         {clients.map(({ client, posts, count }) => (
           <div
             key={client?.id}
-            className="relative group cursor-pointer"
-            onClick={() => handleClientClick(client, posts)}
+            className="relative group"
+            onClick={(e) => {
+              e.stopPropagation();
+              openModalForClient(client);
+            }}
           >
             <div
               className="text-xs px-2 py-1 rounded text-white truncate hover:opacity-80 transition-opacity flex items-center justify-between"
@@ -99,80 +106,72 @@ export function AdminCalendarDay({ posts, specialDate, onPostClick, onEdit }: Ad
         ))}
       </div>
 
-      {/* Lista de Posts Modal */}
       <Modal
         isOpen={isListModalOpen}
         onClose={() => setIsListModalOpen(false)}
-        title={`Posts de ${selectedClient?.name}`}
+        title={`Eventos do Dia: ${format(day, "dd/MM/yyyy")}`}
         size="lg"
       >
-        <div className="space-y-3">
-          {posts
-            .filter(p => p.client_id === selectedClient?.id)
-            .map((post) => (
-              <div
-                key={post.id}
-                className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                onClick={() => handlePostClickFromList(post)}
-              >
-                {post.media_urls && post.media_urls.length > 0 && (
-                  <img
-                    src={post.media_urls[0]}
-                    alt="Preview"
-                    className="w-20 h-20 rounded object-cover"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                      style={{ backgroundColor: post.client?.brand_color }}
-                    >
-                      {post.client?.name[0]}
-                    </div>
-                    <span className="font-medium">{post.client?.name}</span>
-                    <div className={`w-2 h-2 rounded-full ${getStatusColor(post.status)}`} />
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                    {post.caption}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {formatDateTime(post.scheduled_date)}
-                    </span>
-                    <span className="capitalize">{post.post_type}</span>
-                  </div>
+        <div className="space-y-4">
+          {specialDate && (!selectedClient || selectedClient.id === specialDate.client_id) && (
+            <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
+              <div className="flex items-start gap-2">
+                <Star className="h-5 w-5 text-blue-500 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                    {specialDate.title}
+                  </h3>
+                  {specialDate.description && (
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                      {specialDate.description}
+                    </p>
+                  )}
                 </div>
-                <Eye className="h-4 w-4 text-muted-foreground" />
               </div>
-            ))}
-        </div>
-        <div className="flex flex-wrap gap-4 text-xs mt-4">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-gray-500" />
-            <span>Rascunho</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-yellow-500" />
-            <span>Pendente</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span>Aprovado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span>Rejeitado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500" />
-            <span>Publicado</span>
-          </div>
+            </div>
+          )}
+
+          {(selectedClient ? posts.filter(p => p.client_id === selectedClient.id) : posts).map((post) => (
+            <div
+              key={post.id}
+              className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+              onClick={() => handlePostClickFromList(post)}
+            >
+              {post.media_urls && post.media_urls.length > 0 && (
+                <img
+                  src={post.media_urls[0]}
+                  alt="Preview"
+                  className="w-20 h-20 rounded object-cover"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                    style={{ backgroundColor: post.client?.brand_color }}
+                  >
+                    {post.client?.name[0]}
+                  </div>
+                  <span className="font-medium">{post.client?.name}</span>
+                  <div className={`w-2 h-2 rounded-full ${getStatusColor(post.status)}`} />
+                </div>
+                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                  {post.caption}
+                </p>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {formatDateTime(post.scheduled_date)}
+                  </span>
+                  <span className="capitalize">{post.post_type}</span>
+                </div>
+              </div>
+              <Eye className="h-4 w-4 text-muted-foreground" />
+            </div>
+          ))}
         </div>
       </Modal>
 
-      {/* Post View Modal */}
       {selectedPost && (
         <PostViewModal
           post={selectedPost}

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.admin_profiles (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
   company_name TEXT,
-  logo_url TEXT,
+  avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.clients (
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   brand_color TEXT DEFAULT '#8b5cf6',
   is_active BOOLEAN DEFAULT true,
-  logo_url TEXT,
+  avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS public.edit_history (
 CREATE TABLE IF NOT EXISTS public.caption_templates (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   admin_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -72,6 +73,7 @@ CREATE TABLE IF NOT EXISTS public.caption_templates (
 CREATE TABLE IF NOT EXISTS public.hashtag_groups (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   admin_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   hashtags TEXT[] NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -84,7 +86,7 @@ CREATE TABLE IF NOT EXISTS public.special_dates (
   title TEXT NOT NULL,
   date DATE NOT NULL,
   description TEXT,
-recurrent BOOLEAN DEFAULT false,
+  recurrent BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -322,4 +324,3 @@ CREATE TRIGGER update_posts_updated_at BEFORE UPDATE ON public.posts
 
 CREATE TRIGGER update_drafts_updated_at BEFORE UPDATE ON public.drafts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-

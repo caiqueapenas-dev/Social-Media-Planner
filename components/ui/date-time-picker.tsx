@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Label } from "@/components/ui/label";
@@ -54,7 +54,7 @@ export function DateTimePicker({
         type="button"
         onClick={() => setIsOpen(true)}
         className={cn(
-          "w-full flex items-center justify-between px-4 py-3 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors",
+          "w-full flex items-center justify-between px-4 py-3 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors text-left",
           !value && "text-muted-foreground"
         )}
       >
@@ -73,31 +73,35 @@ export function DateTimePicker({
         <div className="space-y-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Data</Label>
-              <Input
-                id="date"
-                type="date"
-                value={tempDate.split("T")[0] || ""}
-                onChange={(e) => {
-                  const time = tempDate.split("T")[1] || "12:00";
-                  setTempDate(`${e.target.value}T${time}`);
-                }}
-                className="text-base"
-              />
+              <Label htmlFor="date-picker-date">Data</Label>
+              <div className="relative">
+                <Input
+                  id="date-picker-date"
+                  type="date"
+                  value={tempDate.split("T")[0] || ""}
+                  onChange={(e) => {
+                    const time = tempDate.split("T")[1] || "12:00";
+                    setTempDate(`${e.target.value}T${time}`);
+                  }}
+                  className="text-base"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="time">Horário</Label>
-              <Input
-                id="time"
-                type="time"
-                value={tempDate.split("T")[1]?.slice(0, 5) || ""}
-                onChange={(e) => {
-                  const date = tempDate.split("T")[0] || format(new Date(), "yyyy-MM-dd");
-                  setTempDate(`${date}T${e.target.value}`);
-                }}
-                className="text-base"
-              />
+              <Label htmlFor="date-picker-time">Horário</Label>
+              <div className="relative">
+                <Input
+                  id="date-picker-time"
+                  type="time"
+                  value={tempDate.split("T")[1]?.slice(0, 5) || ""}
+                  onChange={(e) => {
+                    const date = tempDate.split("T")[0] || format(new Date(), "yyyy-MM-dd");
+                    setTempDate(`${date}T${e.target.value}`);
+                  }}
+                  className="text-base"
+                />
+              </div>
             </div>
           </div>
 
@@ -123,4 +127,3 @@ export function DateTimePicker({
     </div>
   );
 }
-

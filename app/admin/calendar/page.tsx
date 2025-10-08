@@ -81,7 +81,13 @@ export default function CalendarPage() {
   };
 
   const getSpecialDateForDay = (day: Date) => {
-    return specialDates.find((sd) => isSameDay(new Date(sd.date), day));
+    return specialDates.find((sd) => {
+      const sdDate = new Date(sd.date + 'T00:00:00');
+      if (sd.recurrent) {
+        return sdDate.getUTCDate() === day.getUTCDate() && sdDate.getUTCMonth() === day.getUTCMonth();
+      }
+      return isSameDay(sdDate, day);
+    });
   };
 
   const previousMonth = () => {
@@ -90,6 +96,10 @@ export default function CalendarPage() {
 
   const nextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(new Date());
   };
 
   const handleDayClick = (day: Date) => {
@@ -146,9 +156,12 @@ export default function CalendarPage() {
             <Button variant="outline" size="icon" onClick={previousMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-xl font-semibold">
-              {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold capitalize">
+                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+              </h2>
+              <Button variant="outline" onClick={goToToday}>Hoje</Button>
+            </div>
             <Button variant="outline" size="icon" onClick={nextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -185,7 +198,7 @@ export default function CalendarPage() {
                   } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""} ${
                     "hover:bg-accent/50 cursor-pointer"
                   }`}
-                  onClick={() => dayPosts.length === 0 && handleDayClick(day)}
+                  onClick={() => (dayPosts.length === 0 && !specialDate) && handleDayClick(day)}
                 >
                   <div className="text-sm font-medium mb-1 flex justify-between items-center">
                     {format(day, "d")}
@@ -199,6 +212,7 @@ export default function CalendarPage() {
                     </Button>
                   </div>
                   <AdminCalendarDay
+                    day={day}
                     posts={dayPosts}
                     specialDate={specialDate}
                     onPostClick={handlePostClick}

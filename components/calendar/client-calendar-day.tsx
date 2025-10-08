@@ -4,11 +4,9 @@ import { useState } from "react";
 import { Post, SpecialDate } from "@/lib/types";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { PlatformButton } from "@/components/ui/platform-button";
+import { PostViewModal } from "@/components/post/post-view-modal";
 import { formatDateTime } from "@/lib/utils";
-import { Star, Calendar, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Star, Calendar, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import toast from "react-hot-toast";
@@ -25,7 +23,6 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
-  const [feedback, setFeedback] = useState("");
   
   const hasContent = posts.length > 0 || specialDate;
   if (!hasContent) return null;
@@ -60,7 +57,7 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
     onPostUpdate();
   };
 
-  const handleReject = async (post: Post) => {
+  const handleReject = async (post: Post, feedback: string) => {
     const { error } = await supabase
       .from("posts")
       .update({ status: "rejected" })
@@ -89,7 +86,6 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
     await notifyPostRejected(post.id, post.client_id);
 
     toast.success("Post reprovado!");
-    setFeedback("");
     setIsPostModalOpen(false);
     setSelectedPost(null);
     onPostUpdate();
@@ -122,12 +118,14 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
   return (
     <>
       <div
-        className="cursor-pointer"
+        className="cursor-pointer h-full"
         onClick={() => setIsDayModalOpen(true)}
       >
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 items-center">
           {hasSpecialDate && (
-            <div className="w-2 h-2 rounded-full bg-yellow-500" title="Data comemorativa" />
+            <div title="Data comemorativa">
+              <Star className="h-3 w-3 text-blue-500 fill-blue-500" />
+            </div>
           )}
           {pendingCount > 0 && (
             <div className="w-2 h-2 rounded-full bg-yellow-500" title={`${pendingCount} pendente(s)`} />
@@ -142,21 +140,21 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
       <Modal
         isOpen={isDayModalOpen}
         onClose={() => setIsDayModalOpen(false)}
-        title="Posts e Eventos"
+        title="Eventos do Dia"
         size="lg"
       >
         <div className="space-y-4">
           {/* Special Date */}
           {specialDate && (
-            <div className="p-4 border rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+            <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
               <div className="flex items-start gap-2">
-                <Star className="h-5 w-5 text-yellow-500 mt-0.5" />
+                <Star className="h-5 w-5 text-blue-500 mt-0.5" />
                 <div>
-                  <h3 className="font-semibold text-yellow-900 dark:text-yellow-100">
+                  <h3 className="font-semibold text-blue-900 dark:text-blue-100">
                     {specialDate.title}
                   </h3>
                   {specialDate.description && (
-                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                       {specialDate.description}
                     </p>
                   )}
@@ -166,7 +164,7 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
           )}
 
           {/* Posts List */}
-          {posts.length === 0 ? (
+          {posts.length === 0 && !specialDate ? (
             <p className="text-center text-muted-foreground py-4">
               Nenhum post agendado para este dia
             </p>
@@ -215,102 +213,18 @@ export function ClientCalendarDay({ posts, specialDate, onPostUpdate }: ClientCa
 
       {/* Post Detail Modal */}
       {selectedPost && (
-        <Modal
+         <PostViewModal
+          post={selectedPost}
           isOpen={isPostModalOpen}
           onClose={() => {
             setIsPostModalOpen(false);
             setSelectedPost(null);
-            setFeedback("");
           }}
-          title="Detalhes do Post"
-          size="lg"
-        >
-          <div className="space-y-6">
-            {/* Status */}
-            <div className="flex items-center justify-between">
-              {getStatusBadge(selectedPost.status)}
-              <span className="text-sm text-muted-foreground">
-                {formatDateTime(selectedPost.scheduled_date)}
-              </span>
-            </div>
-
-            {/* Media */}
-            {selectedPost.media_urls && selectedPost.media_urls.length > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                {selectedPost.media_urls.map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Media ${i + 1}`}
-                    className="w-full rounded-lg"
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Caption */}
-            <div>
-              <h3 className="font-medium mb-2">Legenda</h3>
-              <p className="text-sm whitespace-pre-wrap bg-muted p-4 rounded-lg">
-                {selectedPost.caption}
-              </p>
-            </div>
-
-            {/* Platforms */}
-            <div>
-              <h3 className="font-medium mb-2">Plataformas</h3>
-              <div className="flex gap-2">
-                <PlatformButton
-                  platform="instagram"
-                  selected={selectedPost.platforms.includes("instagram")}
-                  onToggle={() => {}}
-                  readOnly
-                />
-                <PlatformButton
-                  platform="facebook"
-                  selected={selectedPost.platforms.includes("facebook")}
-                  onToggle={() => {}}
-                  readOnly
-                />
-              </div>
-            </div>
-
-            {/* Actions for pending posts */}
-            {selectedPost.status === "pending" && (
-              <>
-                <div>
-                  <h3 className="font-medium mb-2">Feedback (opcional)</h3>
-                  <Textarea
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Adicione comentários ou sugestões..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleReject(selectedPost)}
-                    className="flex-1 gap-2"
-                  >
-                    <XCircle className="h-4 w-4" />
-                    Reprovar
-                  </Button>
-                  <Button
-                    onClick={() => handleApprove(selectedPost)}
-                    className="flex-1 gap-2"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Aprovar
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </Modal>
+          onApprove={handleApprove}
+          onReject={handleReject}
+          showEditButton={false}
+        />
       )}
     </>
   );
 }
-

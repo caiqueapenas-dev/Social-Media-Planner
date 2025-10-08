@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PlatformButton } from "@/components/ui/platform-button";
+import { PostViewModal } from "@/components/post/post-view-modal";
 import { 
   Calendar, 
   CheckCircle, 
@@ -16,17 +17,20 @@ import {
   XCircle, 
   Plus,
   AlertCircle,
-  Star
+  Star,
+  RefreshCw
 } from "lucide-react";
-import { formatDateTime } from "@/lib/utils";
-import { Post, SpecialDate } from "@/lib/types";
+import { formatDateTime, formatDate } from "@/lib/utils";
+import { Post, SpecialDate, Client } from "@/lib/types";
 import Link from "next/link";
 
 export default function AdminDashboardImproved() {
   const supabase = createClient();
   const { user, setUser, setLoading } = useAuthStore();
   const { posts, setPosts } = usePostsStore();
-  const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
+  const [specialDates, setSpecialDates] = useState<(SpecialDate & { client: Client })[]>([]);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [stats, setStats] = useState({
     pending: 0,
     approved: 0,
@@ -83,10 +87,19 @@ export default function AdminDashboardImproved() {
   };
 
   const loadSpecialDates = async () => {
-    const { data } = await supabase.from("special_dates").select("*");
+    const { data } = await supabase
+      .from("special_dates")
+      .select(`*, client:clients(*)`)
+      .order("date", { ascending: true })
+      .limit(5);
     if (data) {
-      setSpecialDates(data);
+      setSpecialDates(data as any);
     }
+  };
+
+  const handlePostClick = (post: Post) => {
+    setSelectedPost(post);
+    setIsModalOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -103,7 +116,10 @@ export default function AdminDashboardImproved() {
   };
 
   const PostCard = ({ post }: { post: Post }) => (
-    <div className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors">
+    <div 
+      className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
+      onClick={() => handlePostClick(post)}
+    >
       {post.media_urls && post.media_urls.length > 0 && (
         <img
           src={post.media_urls[0]}
@@ -298,13 +314,13 @@ export default function AdminDashboardImproved() {
             )}
           </CardContent>
         </Card>
-        
+
         {/* Special Dates */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Star className="h-5 w-5 text-yellow-500" />
-              Datas Especiais
+              Próximas Datas Especiais
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -319,8 +335,21 @@ export default function AdminDashboardImproved() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="font-medium text-sm">{date.title}</span>
+                        {date.recurrent && (
+                          <Badge variant="secondary" className="gap-1">
+                            <RefreshCw className="h-3 w-3" /> Anual
+                          </Badge>
+                        )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{date.description}</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span
+                          className="px-2 py-1 rounded-full text-white"
+                          style={{ backgroundColor: date.client.brand_color }}
+                        >
+                          {date.client.name}
+                        </span>
+                        <span>{formatDate(date.date + 'T00:00:00')}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -329,6 +358,14 @@ export default function AdminDashboardImproved() {
           </CardContent>
         </Card>
       </div>
+
+      {selectedPost && (
+        <PostViewModal
+          post={selectedPost}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
     </AdminLayout>
   );
 }

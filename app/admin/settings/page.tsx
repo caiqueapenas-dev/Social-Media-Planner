@@ -3,82 +3,112 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useClientsStore } from "@/store/useClientsStore";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Hash } from "lucide-react";
 import toast from "react-hot-toast";
-import { CaptionTemplate, HashtagGroup } from "@/lib/types";
+import { CaptionTemplate, HashtagGroup, Client } from "@/lib/types";
 import { uploadToCloudinary } from "@/lib/utils";
+
+type CaptionTemplateWithClient = CaptionTemplate & { client: Client };
+type HashtagGroupWithClient = HashtagGroup & { client: Client };
 
 export default function SettingsPage() {
   const supabase = createClient();
   const { user, setUser } = useAuthStore();
-  const [captionTemplates, setCaptionTemplates] = useState<CaptionTemplate[]>([]);
-  const [hashtagGroups, setHashtagGroups] = useState<HashtagGroup[]>([]);
+  const { clients, setClients } = useClientsStore();
+  const [captionTemplates, setCaptionTemplates] = useState<CaptionTemplateWithClient[]>([]);
+  const [hashtagGroups, setHashtagGroups] = useState<HashtagGroupWithClient[]>([]);
   
-  const [newTemplate, setNewTemplate] = useState({ title: "", content: "" });
-  const [newHashtagGroup, setNewHashtagGroup] = useState({ title: "", hashtags: "" });
+  const [newTemplate, setNewTemplate] = useState({ title: "", content: "", client_id: "" });
+  const [newHashtagGroup, setNewHashtagGroup] = useState({ title: "", hashtags: "", client_id: "" });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState("");
+
+  useEffect(() => {
+    loadClients();
+  }, []);
 
   useEffect(() => {
     loadCaptionTemplates();
     loadHashtagGroups();
-  }, []);
+  }, [user, selectedClientId]);
+  
+  const loadClients = async () => {
+    const { data } = await supabase.from("clients").select("*").order("name");
+    if(data) setClients(data);
+  };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
+    if (e.target.files && user) {
       setAvatarFile(e.target.files[0]);
-      const avatarUrl = await uploadToCloudinary(e.target.files[0]);
-      const { data, error } = await supabase
-        .from("users")
-        .update({ avatar_url: avatarUrl })
-        .eq("id", user!.id);
-      if (!error) {
-        setUser({ ...user!, avatar_url: avatarUrl });
+      try {
+        const avatarUrl = await uploadToCloudinary(e.target.files[0]);
+        const { error } = await supabase
+          .from("users")
+          .update({ avatar_url: avatarUrl })
+          .eq("id", user.id);
+        if (error) throw error;
+        setUser({ ...user, avatar_url: avatarUrl });
         toast.success("Avatar atualizado!");
-      } else {
+      } catch (error) {
         toast.error("Erro ao atualizar avatar.");
       }
     }
   };
 
   const loadCaptionTemplates = async () => {
-    const { data } = await supabase
+    if (!user) return;
+    let query = supabase
       .from("caption_templates")
-      .select("*")
-      .eq("admin_id", user?.id)
+      .select(`*, client:clients(*)`)
+      .eq("admin_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (data) {
-      setCaptionTemplates(data);
+    if (selectedClientId) {
+      query = query.eq("client_id", selectedClientId);
     }
+    
+    const { data } = await query;
+    if (data) setCaptionTemplates(data as any);
   };
 
   const loadHashtagGroups = async () => {
-    const { data } = await supabase
+    if (!user) return;
+    let query = supabase
       .from("hashtag_groups")
-      .select("*")
-      .eq("admin_id", user?.id)
+      .select(`*, client:clients(*)`)
+      .eq("admin_id", user.id)
       .order("created_at", { ascending: false });
-
-    if (data) {
-      setHashtagGroups(data);
+    
+    if (selectedClientId) {
+      query = query.eq("client_id", selectedClientId);
     }
+
+    const { data } = await query;
+    if (data) setHashtagGroups(data as any);
   };
 
   const handleAddTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!newTemplate.client_id) {
+      toast.error("Selecione um cliente primeiro");
+      return;
+    }
 
     const { error } = await supabase
       .from("caption_templates")
       .insert({
         admin_id: user.id,
+        client_id: newTemplate.client_id,
         title: newTemplate.title,
         content: newTemplate.content,
       });
@@ -89,7 +119,7 @@ export default function SettingsPage() {
     }
 
     toast.success("Template adicionado!");
-    setNewTemplate({ title: "", content: "" });
+    setNewTemplate({ title: "", content: "", client_id: "" });
     loadCaptionTemplates();
   };
 
@@ -111,6 +141,10 @@ export default function SettingsPage() {
   const handleAddHashtagGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!newHashtagGroup.client_id) {
+      toast.error("Selecione um cliente primeiro");
+      return;
+    }
 
     const hashtagsArray = newHashtagGroup.hashtags
       .split(/[,\s]+/)
@@ -121,6 +155,7 @@ export default function SettingsPage() {
       .from("hashtag_groups")
       .insert({
         admin_id: user.id,
+        client_id: newHashtagGroup.client_id,
         title: newHashtagGroup.title,
         hashtags: hashtagsArray,
       });
@@ -131,7 +166,7 @@ export default function SettingsPage() {
     }
 
     toast.success("Grupo de hashtags adicionado!");
-    setNewHashtagGroup({ title: "", hashtags: "" });
+    setNewHashtagGroup({ title: "", hashtags: "", client_id: "" });
     loadHashtagGroups();
   };
 
@@ -156,7 +191,7 @@ export default function SettingsPage() {
         <div>
           <h1 className="text-3xl font-bold">Configurações</h1>
           <p className="text-muted-foreground">
-            Gerencie templates e ferramentas de produtividade
+            Gerencie seu perfil, templates e ferramentas de produtividade
           </p>
         </div>
 
@@ -173,22 +208,31 @@ export default function SettingsPage() {
                 <CardTitle>Foto de Perfil</CardTitle>
               </CardHeader>
               <CardContent>
-                <Input type="file" onChange={handleAvatarChange} />
+                <Input type="file" onChange={handleAvatarChange} accept="image/*" />
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-4">
-            {/* Add new template */}
             <Card>
               <CardHeader>
                 <CardTitle>Novo Template</CardTitle>
                 <CardDescription>
-                  Crie templates de legendas para reutilizar
+                  Crie templates de legendas para reutilizar e associe a um cliente.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAddTemplate} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="template-client">Associar ao Cliente *</Label>
+                    <Select
+                      id="template-client"
+                      value={newTemplate.client_id}
+                      onChange={(e) => setNewTemplate({ ...newTemplate, client_id: e.target.value })}
+                      options={[{ value: "", label: "Selecione um cliente" }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
+                      required
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="template-title">Título</Label>
                     <Input
@@ -222,15 +266,25 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Templates list */}
             <Card>
               <CardHeader>
                 <CardTitle>Meus Templates</CardTitle>
+                <div className="space-y-2 pt-2">
+                  <Label>Filtrar por Cliente</Label>
+                  <Select
+                    value={selectedClientId}
+                    onChange={(e) => setSelectedClientId(e.target.value)}
+                    options={[
+                      { value: "", label: "Todos os clientes" },
+                      ...clients.map((c) => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 {captionTemplates.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
-                    Nenhum template criado ainda
+                    Nenhum template criado ainda para este filtro.
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -240,7 +294,17 @@ export default function SettingsPage() {
                         className="border rounded-lg p-4 space-y-2"
                       >
                         <div className="flex items-start justify-between">
-                          <h3 className="font-medium">{template.title}</h3>
+                          <div className="flex flex-col gap-2">
+                            <h3 className="font-medium">{template.title}</h3>
+                            {template.client && (
+                              <span
+                                className="text-xs px-2 py-1 rounded-full text-white self-start"
+                                style={{ backgroundColor: template.client.brand_color }}
+                              >
+                                {template.client.name}
+                              </span>
+                            )}
+                          </div>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -266,11 +330,21 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle>Novo Grupo de Hashtags</CardTitle>
                 <CardDescription>
-                  Organize hashtags em grupos para reutilizar
+                  Organize hashtags em grupos para reutilizar e associe a um cliente.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAddHashtagGroup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="hashtag-client">Associar ao Cliente *</Label>
+                    <Select
+                      id="hashtag-client"
+                      value={newHashtagGroup.client_id}
+                      onChange={(e) => setNewHashtagGroup({ ...newHashtagGroup, client_id: e.target.value })}
+                      options={[{ value: "", label: "Selecione um cliente" }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
+                      required
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="group-title">Título do Grupo</Label>
                     <Input
@@ -308,11 +382,22 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Meus Grupos</CardTitle>
+                 <div className="space-y-2 pt-2">
+                  <Label>Filtrar por Cliente</Label>
+                  <Select
+                    value={selectedClientId}
+                    onChange={(e) => setSelectedClientId(e.target.value)}
+                    options={[
+                      { value: "", label: "Todos os clientes" },
+                      ...clients.map((c) => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 {hashtagGroups.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
-                    Nenhum grupo criado ainda
+                    Nenhum grupo criado ainda para este filtro.
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -322,10 +407,20 @@ export default function SettingsPage() {
                         className="border rounded-lg p-4 space-y-2"
                       >
                         <div className="flex items-start justify-between">
-                          <h3 className="font-medium flex items-center gap-2">
-                            <Hash className="h-4 w-4" />
-                            {group.title}
-                          </h3>
+                          <div className="flex flex-col gap-2">
+                            <h3 className="font-medium flex items-center gap-2">
+                              <Hash className="h-4 w-4" />
+                              {group.title}
+                            </h3>
+                             {group.client && (
+                              <span
+                                className="text-xs px-2 py-1 rounded-full text-white self-start"
+                                style={{ backgroundColor: group.client.brand_color }}
+                              >
+                                {group.client.name}
+                              </span>
+                            )}
+                          </div>
                           <Button
                             variant="ghost"
                             size="icon"

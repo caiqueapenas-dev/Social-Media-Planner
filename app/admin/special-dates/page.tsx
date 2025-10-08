@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Modal } from "@/components/ui/modal";
-import { Plus, Star, Trash2, Edit, Calendar } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Star, Trash2, Edit, Calendar, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { SpecialDate } from "@/lib/types";
 import { format } from "date-fns";
@@ -34,6 +35,9 @@ export default function SpecialDatesPage() {
 
   useEffect(() => {
     loadClients();
+  }, []);
+
+  useEffect(() => {
     loadSpecialDates();
   }, [selectedClientId]);
 
@@ -46,9 +50,6 @@ export default function SpecialDatesPage() {
 
     if (data) {
       setClients(data);
-      if (data.length > 0 && !selectedClientId) {
-        setSelectedClientId(data[0].id);
-      }
     }
   };
 
@@ -150,8 +151,6 @@ export default function SpecialDatesPage() {
     });
   };
 
-  const selectedClient = clients.find((c) => c.id === selectedClientId);
-
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -177,7 +176,7 @@ export default function SpecialDatesPage() {
 
         {/* Client selector */}
         <div className="space-y-2">
-          <Label>Cliente</Label>
+          <Label>Filtrar por Cliente</Label>
           <Select
             value={selectedClientId}
             onChange={(e) => setSelectedClientId(e.target.value)}
@@ -200,7 +199,7 @@ export default function SpecialDatesPage() {
             {specialDates.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma data comemorativa cadastrada</p>
+                <p>Nenhuma data comemorativa cadastrada para este filtro.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -214,7 +213,12 @@ export default function SpecialDatesPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold">{date.title}</h3>
-                          {date.client && (
+                          {date.recurrent && (
+                            <Badge variant="secondary" className="gap-1">
+                              <RefreshCw className="h-3 w-3" /> Anual
+                            </Badge>
+                          )}
+                          {!selectedClientId && date.client && (
                             <span
                               className="text-xs px-2 py-1 rounded-full text-white"
                               style={{ backgroundColor: date.client.brand_color }}
@@ -224,7 +228,7 @@ export default function SpecialDatesPage() {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">
-                          {format(new Date(date.date), "dd 'de' MMMM 'de' yyyy", {
+                          {format(new Date(date.date + 'T00:00:00'), "dd 'de' MMMM 'de' yyyy", {
                             locale: ptBR,
                           })}
                         </p>
@@ -321,7 +325,7 @@ export default function SpecialDatesPage() {
               rows={3}
               placeholder="Informações adicionais sobre a data..."
             />
-            <div className="flex items-center space-x-2">
+             <div className="flex items-center space-x-2 pt-2">
               <input
                 type="checkbox"
                 id="recurrent"

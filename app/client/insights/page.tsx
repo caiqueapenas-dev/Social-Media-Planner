@@ -7,6 +7,7 @@ import { ClientLayout } from "@/components/layout/client-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Lightbulb, Send, Edit, Trash2 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -22,6 +23,7 @@ export default function ClientInsightsPage() {
   const [newInsight, setNewInsight] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInsight, setEditingInsight] = useState<Insight | null>(null);
+  const [selectedInsights, setSelectedInsights] = useState<string[]>([]);
 
   useEffect(() => {
     loadClientData();
@@ -57,7 +59,7 @@ export default function ClientInsightsPage() {
       .from("insights")
       .select(`
         *,
-        user:users!insights_created_by_fkey(id, full_name, email, avatar_url)
+        user:users!insights_created_by_fkey(id, full_name, email, avatar_url, role)
       `)
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
@@ -78,21 +80,23 @@ export default function ClientInsightsPage() {
         const { error } = await supabase
           .from("insights")
           .update({ content: newInsight })
-          .eq("id", editingInsight.id);
+          .eq("id", editingInsight.id)
+          .eq("created_by", user.id); // RLS check
         if (error) throw error;
-        toast.success("Insight atualizado!");
+        toast.success("Ideia atualizada!");
+        setInsights(insights.map(i => i.id === editingInsight.id ? { ...i, content: newInsight } : i));
       } else {
-        const { error } = await supabase
+        const { data: newInsightData, error } = await supabase
           .from("insights")
           .insert({
             client_id: clientId,
             content: newInsight,
             created_by: user.id,
-          });
+          }).select('*, user:users!insights_created_by_fkey(*)').single();
 
         if (error) throw error;
 
-        // Notify admin
+        setInsights([newInsightData as any, ...insights]);
         const { notifyNewInsight } = await import("@/lib/notifications");
         await notifyNewInsight(clientId, user.id);
         toast.success("Ideia compartilhada!");
@@ -100,43 +104,71 @@ export default function ClientInsightsPage() {
 
       setNewInsight("");
       setEditingInsight(null);
-      loadInsights();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao salvar ideia");
+      toast.error("Erro ao salvar ideia.");
     } finally {
       setIsSubmitting(false);
     }
   };
   
   const handleEdit = (insight: Insight) => {
+    if (user?.id !== insight.created_by) {
+      toast.error("Você só pode editar suas próprias ideias.");
+      return;
+    }
     setEditingInsight(insight);
     setNewInsight(insight.content);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que quer excluir este insight?")) return;
-    const { error } = await supabase.from("insights").delete().eq("id", id);
-    if (error) {
-      toast.error("Erro ao excluir insight");
-    } else {
-      toast.success("Insight excluído!");
-      loadInsights();
+  const handleDelete = async (ids: string[]) => {
+    if (!confirm(`Tem certeza que quer excluir ${ids.length} ideia(s)?`)) return;
+    
+    const ownInsights = insights.filter(i => ids.includes(i.id) && i.created_by === user?.id).map(i => i.id);
+    if (ownInsights.length !== ids.length) {
+      toast.error("Você só pode excluir suas próprias ideias.");
     }
+    
+    if (ownInsights.length > 0) {
+      const { error } = await supabase.from("insights").delete().in("id", ownInsights);
+      if (error) {
+        toast.error("Erro ao excluir ideia(s).");
+      } else {
+        toast.success("Ideia(s) excluída(s)!");
+        setInsights(insights.filter(i => !ownInsights.includes(i.id)));
+        setSelectedInsights([]);
+      }
+    }
+  };
+
+  const toggleSelection = (id: string, created_by: string) => {
+    if(user?.id !== created_by) {
+      toast.error("Você só pode selecionar suas próprias ideias para excluir.");
+      return;
+    }
+    setSelectedInsights(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   return (
     <ClientLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold">Insights & Ideias</h1>
           <p className="text-muted-foreground">
             Compartilhe suas ideias de conteúdo com a equipe
           </p>
         </div>
+        
+        {selectedInsights.length > 0 && (
+          <div className="flex justify-end">
+            <Button variant="destructive" onClick={() => handleDelete(selectedInsights)}>
+              Excluir Selecionados ({selectedInsights.length})
+            </Button>
+          </div>
+        )}
 
-        {/* New insight form */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -168,7 +200,6 @@ export default function ClientInsightsPage() {
           </CardContent>
         </Card>
 
-        {/* Insights list */}
         <Card>
           <CardHeader>
             <CardTitle>Histórico de Ideias</CardTitle>
@@ -177,27 +208,40 @@ export default function ClientInsightsPage() {
             {insights.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Lightbulb className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma ideia compartilhada ainda</p>
-                <p className="text-sm mt-2">
-                  Compartilhe suas inspirações e ideias de conteúdo!
-                </p>
+                <p>Nenhuma ideia compartilhada ainda.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {insights.map((insight: any) => (
                   <div
                     key={insight.id}
-                    className="border rounded-lg p-4 space-y-2"
+                    className={`border rounded-lg p-4 space-y-2 transition-colors ${selectedInsights.includes(insight.id) ? 'bg-primary/10' : ''}`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
-                          {insight.user?.full_name?.[0] || "?"}
+                        {user?.id === insight.created_by && (
+                          <input
+                            type="checkbox"
+                            checked={selectedInsights.includes(insight.id)}
+                            onChange={() => toggleSelection(insight.id, insight.created_by)}
+                            className="cursor-pointer"
+                          />
+                        )}
+                        <div
+                          className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground bg-cover bg-center"
+                          style={{ backgroundImage: insight.user?.avatar_url ? `url(${insight.user.avatar_url})` : 'none' }}
+                        >
+                          {!insight.user?.avatar_url && (insight.user?.full_name?.[0] || "?")}
                         </div>
                         <div>
-                          <p className="font-medium text-sm">
-                            {insight.user?.full_name || "Usuário"}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">
+                              {insight.user?.full_name || "Usuário"}
+                            </p>
+                            <Badge variant={insight.user?.role === 'admin' ? 'default' : 'secondary'}>
+                              {insight.user?.role === 'admin' ? 'Admin' : 'Cliente'}
+                            </Badge>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {formatDateTime(insight.created_at)}
                           </p>
@@ -215,14 +259,14 @@ export default function ClientInsightsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(insight.id)}
+                            onClick={() => handleDelete([insight.id])}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       )}
                     </div>
-                    <p className="text-sm whitespace-pre-wrap pl-10">
+                    <p className={`text-sm whitespace-pre-wrap ${user?.id === insight.created_by ? 'pl-12' : 'pl-10'}`}>
                       {insight.content}
                     </p>
                   </div>

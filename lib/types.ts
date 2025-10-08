@@ -55,6 +55,8 @@ export interface EditHistory {
 export interface CaptionTemplate {
   id: string;
   admin_id: string;
+  client_id?: string;
+  client?: Client;
   title: string;
   content: string;
   created_at: string;
@@ -63,6 +65,8 @@ export interface CaptionTemplate {
 export interface HashtagGroup {
   id: string;
   admin_id: string;
+  client_id?: string;
+  client?: Client;
   title: string;
   hashtags: string[];
   created_at: string;

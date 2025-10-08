@@ -71,6 +71,9 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
   useEffect(() => {
     if (formData.client_id && user) {
       loadTemplatesAndHashtags();
+    } else {
+      setTemplates([]);
+      setHashtagGroups([]);
     }
   }, [formData.client_id, user]);
 
@@ -83,10 +86,13 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
   }, [mediaPreviews.length, mediaFiles.length]);
 
   const loadTemplatesAndHashtags = async () => {
+    if (!formData.client_id || !user) return;
+
     const { data: templatesData } = await supabase
       .from("caption_templates")
       .select("*")
-      .eq("admin_id", user?.id)
+      .eq("admin_id", user.id)
+      .eq("client_id", formData.client_id)
       .order("created_at", { ascending: false });
 
     if (templatesData) {
@@ -96,7 +102,8 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
     const { data: hashtagsData } = await supabase
       .from("hashtag_groups")
       .select("*")
-      .eq("admin_id", user?.id)
+      .eq("admin_id", user.id)
+      .eq("client_id", formData.client_id)
       .order("created_at", { ascending: false });
 
     if (hashtagsData) {
@@ -248,20 +255,20 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
     <form onSubmit={handleSubmit} className="space-y-6">
       <Modal isOpen={isTemplateModalOpen} onClose={() => setIsTemplateModalOpen(false)} title="Templates de Legenda">
         <div className="space-y-2">
-          {templates.map(template => (
-            <Button key={template.id} variant="outline" onClick={() => insertTemplate(template)}>
+          {templates.length > 0 ? templates.map(template => (
+            <Button key={template.id} variant="outline" className="w-full justify-start" onClick={() => insertTemplate(template)}>
               {template.title}
             </Button>
-          ))}
+          )) : <p className="text-sm text-muted-foreground">Nenhum template encontrado para este cliente.</p>}
         </div>
       </Modal>
       <Modal isOpen={isHashtagModalOpen} onClose={() => setIsHashtagModalOpen(false)} title="Grupos de Hashtags">
         <div className="space-y-2">
-          {hashtagGroups.map(group => (
-            <Button key={group.id} variant="outline" onClick={() => insertHashtags(group)}>
+          {hashtagGroups.length > 0 ? hashtagGroups.map(group => (
+            <Button key={group.id} variant="outline" className="w-full justify-start" onClick={() => insertHashtags(group)}>
               {group.title}
             </Button>
-          ))}
+          )) : <p className="text-sm text-muted-foreground">Nenhum grupo de hashtags encontrado para este cliente.</p>}
         </div>
       </Modal>
       
@@ -270,29 +277,31 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
         <div className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="client_id">Cliente *</Label>
-            <div className="relative">
+            <div className="flex items-center gap-3">
               {selectedClient && (
-                <div
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full"
-                  style={{ backgroundColor: selectedClient.brand_color }}
+                <img 
+                  src={selectedClient.avatar_url || `https://ui-avatars.com/api/?name=${selectedClient.name}`} 
+                  alt={selectedClient.name}
+                  className="w-10 h-10 rounded-full object-cover"
                 />
               )}
-              <Select
-                id="client_id"
-                value={formData.client_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, client_id: e.target.value })
-                }
-                options={[
-                  { value: "", label: "Selecione um cliente" },
-                  ...clients.map((c) => ({ 
-                    value: c.id, 
-                    label: `${c.name}` 
-                  })),
-                ]}
-                required
-                className={selectedClient ? "pl-12" : ""}
-              />
+              <div className="relative flex-1">
+                <Select
+                  id="client_id"
+                  value={formData.client_id}
+                  onChange={(e) =>
+                    setFormData({ ...formData, client_id: e.target.value })
+                  }
+                  options={[
+                    { value: "", label: "Selecione um cliente" },
+                    ...clients.map((c) => ({ 
+                      value: c.id, 
+                      label: `${c.name}` 
+                    })),
+                  ]}
+                  required
+                />
+              </div>
             </div>
           </div>
 
@@ -351,10 +360,12 @@ export function PostForm({ onSuccess, onCancel, initialData, onDelete }: PostFor
                 placeholder="Escreva a legenda do post..."
                 required
               />
-              <div className="absolute bottom-2 right-2 flex gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsTemplateModalOpen(true)}>Templates</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsHashtagModalOpen(true)}>Hashtags</Button>
-              </div>
+              {formData.client_id && (
+                <div className="absolute bottom-2 right-2 flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsTemplateModalOpen(true)}>Templates</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsHashtagModalOpen(true)}>Hashtags</Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
