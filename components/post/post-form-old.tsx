@@ -190,7 +190,7 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
                 } else {
                   setFormData({
                     ...formData,
-                    platforms: formData.platforms.filter((p) => p !== "instagram"),
+                    platforms: formData.platforms.filter((p: Platform) => p !== "instagram"),
                   });
                 }
               }}
@@ -211,7 +211,7 @@ export function PostForm({ onSuccess, onCancel, initialData }: PostFormProps) {
                 } else {
                   setFormData({
                     ...formData,
-                    platforms: formData.platforms.filter((p) => p !== "facebook"),
+                    platforms: formData.platforms.filter((p: Platform) => p !== "facebook"),
                   });
                 }
               }}
