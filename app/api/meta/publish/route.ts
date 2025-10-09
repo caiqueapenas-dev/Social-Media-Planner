@@ -102,12 +102,41 @@ export async function POST(request: Request) {
       const data = await response.json();
       if (data.error) throw new Error(data.error.message);
       creationId = data.id;
+    } else if (postData.post_type === "carousel") {
+      if (!postData.media_urls || postData.media_urls.length < 2) {
+        throw new Error("Carrosséis precisam de pelo menos 2 mídias.");
+      }
+
+      // Passo 1: Criar contêineres para cada item do carrossel
+      const itemContainerIds = [];
+      for (const mediaUrl of postData.media_urls) {
+        // Por enquanto, assumindo que todos os itens do carrossel são imagens
+        const itemUrl = `${BASE_URL}/${instagram_business_id}/media?image_url=${mediaUrl}&is_carousel_item=true&access_token=${meta_page_access_token}`;
+        const itemResponse = await fetch(itemUrl, { method: "POST" });
+        const itemData = await itemResponse.json();
+        if (itemData.error)
+          throw new Error(
+            `Erro ao criar item do carrossel: ${itemData.error.message}`
+          );
+        itemContainerIds.push(itemData.id);
+      }
+
+      // Passo 2: Criar o contêiner principal do carrossel
+      const children = itemContainerIds.join(",");
+      const carouselUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=CAROUSEL&children=${children}&caption=${caption}&access_token=${meta_page_access_token}`;
+      const carouselResponse = await fetch(carouselUrl, { method: "POST" });
+      const carouselData = await carouselResponse.json();
+      if (carouselData.error)
+        throw new Error(
+          `Erro ao criar o contêiner do carrossel: ${carouselData.error.message}`
+        );
+      creationId = carouselData.id;
     } else {
-      // Futuramente, adicionar lógica para Carrossel e Reels aqui.
+      // Futuramente, adicionar lógica para Reels aqui.
       return NextResponse.json(
         {
           error:
-            "Apenas posts do tipo 'Foto' são suportados para publicação direta no momento.",
+            "Apenas posts do tipo 'Foto' e 'Carrossel' são suportados no momento.",
         },
         { status: 501 }
       );
