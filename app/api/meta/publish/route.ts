@@ -149,12 +149,44 @@ export async function POST(request: Request) {
       await pollContainerStatus(initialContainerId, meta_page_access_token);
 
       creationId = initialContainerId;
+    } else if (postData.post_type === "story") {
+      if (!postData.media_urls || postData.media_urls.length === 0) {
+        throw new Error("Stories precisam de uma mídia (imagem ou vídeo).");
+      }
+
+      const mediaUrl = postData.media_urls[0];
+      const isVideo = [".mp4", ".mov"].some((ext) =>
+        mediaUrl.toLowerCase().endsWith(ext)
+      );
+
+      let storyContainerUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=STORIES&access_token=${meta_page_access_token}`;
+      if (isVideo) {
+        storyContainerUrl += `&video_url=${mediaUrl}`;
+      } else {
+        storyContainerUrl += `&image_url=${mediaUrl}`;
+      }
+
+      const storyContainerResponse = await fetch(storyContainerUrl, {
+        method: "POST",
+      });
+      const storyContainerData = await storyContainerResponse.json();
+
+      if (storyContainerData.error) {
+        throw new Error(
+          `Erro ao criar contêiner do Story: ${storyContainerData.error.message}`
+        );
+      }
+      const initialContainerId = storyContainerData.id;
+
+      // Apenas vídeos de stories precisam de polling
+      if (isVideo) {
+        await pollContainerStatus(initialContainerId, meta_page_access_token);
+      }
+
+      creationId = initialContainerId;
     } else {
       return NextResponse.json(
-        {
-          error:
-            "Apenas posts do tipo 'Foto', 'Carrossel' e 'Reel' são suportados no momento.",
-        },
+        { error: "Tipo de post não suportado." },
         { status: 501 }
       );
     }
@@ -162,12 +194,16 @@ export async function POST(request: Request) {
     // Publica ou agenda o contêiner
     let publishUrl = `${BASE_URL}/${instagram_business_id}/media_publish?creation_id=${creationId}&access_token=${meta_page_access_token}`;
 
-    const scheduledDate = new Date(postData.scheduled_date);
-    const now = new Date();
+    // A API da Meta não suporta agendamento de stories. Eles são publicados imediatamente.
+    if (postData.post_type !== "story") {
+      const scheduledDate = new Date(postData.scheduled_date);
+      const now = new Date();
 
-    if (scheduledDate > new Date(now.getTime() + 10 * 60 * 1000)) {
-      const publishTime = Math.floor(scheduledDate.getTime() / 1000);
-      publishUrl += `&scheduled_publish_time=${publishTime}`;
+      // A API da Meta exige um agendamento com pelo menos 10 minutos de antecedência e no máximo 6 meses.
+      if (scheduledDate > new Date(now.getTime() + 10 * 60 * 1000)) {
+        const publishTime = Math.floor(scheduledDate.getTime() / 1000);
+        publishUrl += `&scheduled_publish_time=${publishTime}`;
+      }
     }
 
     const publishResponse = await fetch(publishUrl, { method: "POST" });
