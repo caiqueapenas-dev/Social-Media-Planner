@@ -578,7 +578,9 @@ export function PostForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="caption">Legenda *</Label>
+            <Label htmlFor="caption">
+              Legenda {formData.post_type !== "story" && "*"}
+            </Label>
             <div className="relative">
               <Textarea
                 id="caption"
@@ -587,10 +589,15 @@ export function PostForm({
                   setFormData({ ...formData, caption: e.target.value })
                 }
                 rows={8}
-                placeholder="Escreva a legenda do post..."
-                required
+                placeholder={
+                  formData.post_type === "story"
+                    ? "Stories não possuem legenda."
+                    : "Escreva a legenda do post..."
+                }
+                required={formData.post_type !== "story"}
+                disabled={formData.post_type === "story"}
               />
-              {formData.client_id && (
+              {formData.client_id && formData.post_type !== "story" && (
                 <div className="absolute bottom-2 right-2 flex gap-2">
                   <Button
                     type="button"
