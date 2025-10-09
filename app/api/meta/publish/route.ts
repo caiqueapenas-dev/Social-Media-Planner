@@ -107,10 +107,8 @@ export async function POST(request: Request) {
         throw new Error("Carrosséis precisam de pelo menos 2 mídias.");
       }
 
-      // Passo 1: Criar contêineres para cada item do carrossel
       const itemContainerIds = [];
       for (const mediaUrl of postData.media_urls) {
-        // Por enquanto, assumindo que todos os itens do carrossel são imagens
         const itemUrl = `${BASE_URL}/${instagram_business_id}/media?image_url=${mediaUrl}&is_carousel_item=true&access_token=${meta_page_access_token}`;
         const itemResponse = await fetch(itemUrl, { method: "POST" });
         const itemData = await itemResponse.json();
@@ -121,7 +119,6 @@ export async function POST(request: Request) {
         itemContainerIds.push(itemData.id);
       }
 
-      // Passo 2: Criar o contêiner principal do carrossel
       const children = itemContainerIds.join(",");
       const carouselUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=CAROUSEL&children=${children}&caption=${caption}&access_token=${meta_page_access_token}`;
       const carouselResponse = await fetch(carouselUrl, { method: "POST" });
@@ -131,12 +128,32 @@ export async function POST(request: Request) {
           `Erro ao criar o contêiner do carrossel: ${carouselData.error.message}`
         );
       creationId = carouselData.id;
+    } else if (postData.post_type === "reel") {
+      if (!postData.media_urls || postData.media_urls.length === 0) {
+        throw new Error("Reels precisam de um vídeo.");
+      }
+
+      const reelContainerUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=REELS&video_url=${postData.media_urls[0]}&caption=${caption}&access_token=${meta_page_access_token}`;
+      const reelContainerResponse = await fetch(reelContainerUrl, {
+        method: "POST",
+      });
+      const reelContainerData = await reelContainerResponse.json();
+
+      if (reelContainerData.error) {
+        throw new Error(
+          `Erro ao criar contêiner do Reel: ${reelContainerData.error.message}`
+        );
+      }
+      const initialContainerId = reelContainerData.id;
+
+      await pollContainerStatus(initialContainerId, meta_page_access_token);
+
+      creationId = initialContainerId;
     } else {
-      // Futuramente, adicionar lógica para Reels aqui.
       return NextResponse.json(
         {
           error:
-            "Apenas posts do tipo 'Foto' e 'Carrossel' são suportados no momento.",
+            "Apenas posts do tipo 'Foto', 'Carrossel' e 'Reel' são suportados no momento.",
         },
         { status: 501 }
       );
@@ -148,7 +165,6 @@ export async function POST(request: Request) {
     const scheduledDate = new Date(postData.scheduled_date);
     const now = new Date();
 
-    // A API da Meta exige um agendamento com pelo menos 10 minutos de antecedência e no máximo 6 meses.
     if (scheduledDate > new Date(now.getTime() + 10 * 60 * 1000)) {
       const publishTime = Math.floor(scheduledDate.getTime() / 1000);
       publishUrl += `&scheduled_publish_time=${publishTime}`;
