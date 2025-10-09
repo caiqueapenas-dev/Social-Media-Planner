@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -183,6 +183,38 @@ function CalendarView() {
     }
   };
 
+  const handleBulkDelete = async (postIds: string[]) => {
+    if (
+      window.confirm(
+        `Tem certeza que deseja excluir ${postIds.length} post(s)?`
+      )
+    ) {
+      const { error } = await supabase.from("posts").delete().in("id", postIds);
+      if (error) {
+        toast.error("Erro ao excluir posts.");
+      } else {
+        toast.success("Posts excluídos com sucesso!");
+        loadPosts();
+      }
+    }
+  };
+
+  const handleBulkStatusChange = async (
+    postIds: string[],
+    status: Post["status"]
+  ) => {
+    const { error } = await supabase
+      .from("posts")
+      .update({ status })
+      .in("id", postIds);
+    if (error) {
+      toast.error(`Erro ao atualizar status dos posts.`);
+    } else {
+      toast.success("Status dos posts atualizado!");
+      loadPosts();
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -343,6 +375,8 @@ function CalendarView() {
                 setSelectedPost(post);
                 setIsPostModalOpen(true);
               }}
+              onBulkDelete={handleBulkDelete}
+              onBulkStatusChange={handleBulkStatusChange}
             />
           </TabsContent>
         </Tabs>
