@@ -26,6 +26,7 @@ export function formatDateTime(date: Date | string): string {
 }
 
 export function getInitials(name: string): string {
+  if (!name) return "";
   return name
     .split(" ")
     .map((n) => n[0])
@@ -38,7 +39,10 @@ export function uploadToCloudinary(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
+    formData.append(
+      "upload_preset",
+      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!
+    );
 
     fetch(
       `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/auto/upload`,
@@ -58,4 +62,3 @@ export function uploadToCloudinary(file: File): Promise<string> {
       .catch(reject);
   });
 }
-

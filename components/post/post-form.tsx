@@ -134,6 +134,55 @@ export function PostForm({
     }
   }, [formData.post_type]);
 
+  // Sincroniza o estado do formulário com os dados iniciais ao editar um post
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        client_id: initialData.client_id || "",
+        caption: initialData.caption || "",
+        scheduled_date:
+          initialData.scheduled_date ||
+          format(new Date(), "yyyy-MM-dd'T'10:00"),
+        post_type: initialData.post_type || "photo",
+        platforms: initialData.platforms || ["instagram", "facebook"],
+        status: initialData.status || "draft",
+      });
+      setMediaPreviews(initialData.media_urls || []);
+      setMediaFiles([]);
+    }
+  }, [initialData]);
+
+  // Recarrega o formulário quando um post diferente é selecionado para edição
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        client_id: initialData.client_id || "",
+        caption: initialData.caption || "",
+        scheduled_date:
+          initialData.scheduled_date ||
+          format(new Date(), "yyyy-MM-dd'T'10:00"),
+        post_type: initialData.post_type || "photo",
+        platforms: initialData.platforms || ["instagram", "facebook"],
+        status: initialData.status || "draft",
+      });
+      setMediaPreviews(initialData.media_urls || []);
+      setMediaFiles([]); // Limpa arquivos novos ao carregar um post existente
+    } else {
+      // Reseta para um novo post se não houver dados iniciais
+      setFormData((prev) => ({
+        ...prev,
+        client_id: "",
+        caption: "",
+        post_type: "photo",
+        status: "draft",
+        scheduled_date: format(new Date(), "yyyy-MM-dd'T'10:00"),
+        platforms: ["instagram", "facebook"],
+      }));
+      setMediaPreviews([]);
+      setMediaFiles([]);
+    }
+  }, [initialData]);
+
   // Load draft on mount
   useEffect(() => {
     const loadDraft = async () => {
@@ -368,6 +417,18 @@ export function PostForm({
           .eq("id", initialData.id);
 
         if (error) throw error;
+
+        // Log caption change to history
+        if (initialData.caption !== postData.caption) {
+          await supabase.from("edit_history").insert({
+            post_id: initialData.id,
+            edited_by: user.id,
+            changes: {
+              caption: { from: initialData.caption, to: postData.caption },
+            },
+          });
+        }
+
         toast.success("Post atualizado com sucesso!");
       } else {
         const { data: newPost, error } = await supabase
@@ -487,6 +548,7 @@ export function PostForm({
                     })),
                   ]}
                   required
+                  disabled={!!initialData} // Desativa a seleção ao editar qualquer post
                 />
               </div>
             </div>

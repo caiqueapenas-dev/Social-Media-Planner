@@ -34,23 +34,36 @@ export function AlterationChecklist({
 }: AlterationChecklistProps) {
   const supabase = createClient();
   const { user } = useAuthStore();
+  const [currentRequests, setCurrentRequests] = useState<AlterationRequest[]>(
+    requests as AlterationRequest[]
+  );
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const isAdmin = user?.role === "admin";
+
+  useEffect(() => {
+    setCurrentRequests(requests as AlterationRequest[]);
+  }, [requests]);
 
   const toggleStatus = async (request: AlterationRequest) => {
     if (!isAdmin || updatingId) return;
     setUpdatingId(request.id);
     const newStatus = request.status === "pending" ? "completed" : "pending";
-    await supabase
+    const { error } = await supabase
       .from("post_comments")
       .update({ status: newStatus })
       .eq("id", request.id);
+
+    if (error) {
+      toast.error("Erro ao atualizar status da alteração.");
+    }
     setUpdatingId(null);
   };
 
-  const selectedInThisList = requests.filter((r) => selectedIds.includes(r.id));
+  const selectedInThisList = currentRequests.filter((r) =>
+    selectedIds.includes(r.id)
+  );
 
-  if (requests.length === 0) {
+  if (currentRequests.length === 0) {
     return null;
   }
 
@@ -59,7 +72,7 @@ export function AlterationChecklist({
       <div className="flex items-center justify-between">
         <h3 className="font-medium flex items-center gap-2 text-lg">
           <Edit2 className="h-5 w-5" />
-          Solicitações de Alteração ({requests.length})
+          Solicitações de Alteração ({currentRequests.length})
         </h3>
         {selectedInThisList.length > 0 && (
           <Button
@@ -73,7 +86,7 @@ export function AlterationChecklist({
         )}
       </div>
       <div className="space-y-2 border rounded-lg p-2">
-        {requests.map((req) => (
+        {currentRequests.map((req) => (
           <div
             key={req.id}
             className="flex items-start gap-3 p-2 rounded-lg hover:bg-accent"

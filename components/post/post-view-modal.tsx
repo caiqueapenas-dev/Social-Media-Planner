@@ -1,6 +1,7 @@
 // components/post/post-view-modal.tsx
 
 "use client";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { useState, useEffect } from "react";
 import { Post, PostComment } from "@/lib/types";
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import { PostComments } from "@/components/post/post-comments";
 import { AlterationChecklist } from "@/components/post/alteration-checklist";
+import { PostHistory } from "@/components/post/post-history";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
@@ -325,22 +327,41 @@ export function PostViewModal({
         )}
 
         {/* Aba de Alterações e Comentários */}
-        <div className="space-y-6 pt-4 border-t">
-          <AlterationChecklist
-            postId={post.id}
-            requests={alterationRequests}
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelection}
-            onDelete={handleDelete}
-          />
-          <PostComments
-            postId={post.id}
-            comments={normalComments}
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelection}
-            onDelete={handleDelete}
-          />
-        </div>
+        <Tabs defaultValue="comments" className="pt-4 border-t">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="comments">Comentários</TabsTrigger>
+            <TabsTrigger value="alterations">Alterações</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
+          </TabsList>
+          <TabsContent value="comments" className="mt-4">
+            <PostComments
+              postId={post.id}
+              comments={normalComments}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelection}
+              onDelete={handleDelete}
+            />
+          </TabsContent>
+          <TabsContent value="alterations" className="mt-4">
+            <AlterationChecklist
+              postId={post.id}
+              requests={alterationRequests}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelection}
+              onDelete={handleDelete}
+            />
+            <PostComments
+              postId={post.id}
+              comments={normalComments}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelection}
+              onDelete={handleDelete}
+            />
+          </TabsContent>
+          <TabsContent value="history" className="mt-4">
+            <PostHistory postId={post.id} />
+          </TabsContent>
+        </Tabs>
       </div>
     </Modal>
   );
