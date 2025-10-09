@@ -175,3 +175,19 @@ CREATE TRIGGER on_post_status_change_send_notification
   FOR EACH ROW
   WHEN (OLD.status IS DISTINCT FROM NEW.status)
   EXECUTE FUNCTION public.handle_post_status_change();
+
+-- Drafts table for auto-save
+CREATE TABLE IF NOT EXISTS public.drafts (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE, -- For editing existing posts
+  form_data JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, post_id)
+);
+
+ALTER TABLE public.drafts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own drafts" ON public.drafts
+  FOR ALL USING (auth.uid() = user_id);

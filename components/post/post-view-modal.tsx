@@ -1,7 +1,9 @@
+// components/post/post-view-modal.tsx
+
 "use client";
 
-import { useState } from "react";
-import { Post } from "@/lib/types";
+import { useState, useEffect } from "react";
+import { Post, PostComment } from "@/lib/types";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +21,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { PostComments } from "@/components/post/post-comments";
+import { AlterationChecklist } from "@/components/post/alteration-checklist";
+import { createClient } from "@/lib/supabase/client";
+import toast from "react-hot-toast";
 
 interface PostViewModalProps {
   post: Post;
@@ -26,8 +31,8 @@ interface PostViewModalProps {
   onClose: () => void;
   onEdit?: () => void;
   onApprove?: (post: Post) => void;
-  onReject?: (post: Post, feedback: string) => void; // Manter para o admin
-  onrefactor?: (post: Post, feedback: string) => void;
+  onReject?: (post: Post, feedback: string) => void;
+  onRefactor?: (post: Post, feedback: string) => void;
   showEditButton?: boolean;
 }
 
@@ -38,11 +43,90 @@ export function PostViewModal({
   onEdit,
   onApprove,
   onReject,
-  onrefactor,
+  onRefactor,
   showEditButton = true,
 }: PostViewModalProps) {
   const [feedback, setFeedback] = useState("");
   const [currentImage, setCurrentImage] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [allComments, setAllComments] = useState<PostComment[]>([]);
+  const supabase = createClient();
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCurrentImage(0); // Reset image index on close
+      return;
+    }
+
+    const loadAllComments = async () => {
+      const { data } = await supabase
+        .from("post_comments")
+        .select(`*, user:users(*)`)
+        .eq("post_id", post.id)
+        .order("created_at", { ascending: false });
+      if (data) {
+        setAllComments(data as any[]);
+      }
+    };
+
+    loadAllComments();
+
+    const channel = supabase
+      .channel(`post-comments-realtime-${post.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "post_comments",
+          filter: `post_id=eq.${post.id}`,
+        },
+        () => loadAllComments()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, post.id]);
+
+  const alterationRequests = allComments.filter(
+    (c) => c.type === "alteration_request"
+  );
+  const normalComments = allComments.filter(
+    (c) => c.type !== "alteration_request"
+  );
+
+  const handleDelete = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    if (
+      window.confirm(`Tem certeza que deseja excluir ${ids.length} item(s)?`)
+    ) {
+      const originalComments = [...allComments];
+
+      // Optimistic UI update
+      setAllComments(originalComments.filter((c) => !ids.includes(c.id)));
+      setSelectedIds([]);
+
+      const { error } = await supabase
+        .from("post_comments")
+        .delete()
+        .in("id", ids);
+
+      if (error) {
+        toast.error("Erro ao excluir. Restaurando itens.");
+        setAllComments(originalComments); // Revert on error
+      } else {
+        toast.success(`${ids.length} item(s) excluído(s)!`);
+      }
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   const nextImage = () => {
     setCurrentImage((prev) => (prev + 1) % post.media_urls.length);
@@ -187,11 +271,11 @@ export function PostViewModal({
           </div>
         </div>
 
-        {post.status === "pending" && (onApprove || onReject || onrefactor) && (
+        {post.status === "pending" && (onApprove || onReject || onRefactor) && (
           <div className="space-y-4 pt-4 border-t">
             <div>
               <h3 className="font-medium mb-2">
-                {onrefactor
+                {onRefactor
                   ? "Descreva a alteração necessária *"
                   : "Deixar um Feedback (opcional)"}
               </h3>
@@ -199,7 +283,7 @@ export function PostViewModal({
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
                 placeholder={
-                  onrefactor
+                  onRefactor
                     ? "Ex: Mudar a cor de fundo para azul, ajustar o texto da primeira imagem..."
                     : "Adicione comentários ou sugestões..."
                 }
@@ -216,10 +300,10 @@ export function PostViewModal({
                   Aprovar
                 </Button>
               )}
-              {onrefactor && (
+              {onRefactor && (
                 <Button
                   variant="outline"
-                  onClick={() => onrefactor(post, feedback)}
+                  onClick={() => onRefactor(post, feedback)}
                   className="gap-2 flex-1"
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -240,9 +324,22 @@ export function PostViewModal({
           </div>
         )}
 
-        {/* Aba de Alterações */}
-        <div className="pt-4 border-t">
-          <PostComments postId={post.id} />
+        {/* Aba de Alterações e Comentários */}
+        <div className="space-y-6 pt-4 border-t">
+          <AlterationChecklist
+            postId={post.id}
+            requests={alterationRequests}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelection}
+            onDelete={handleDelete}
+          />
+          <PostComments
+            postId={post.id}
+            comments={normalComments}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelection}
+            onDelete={handleDelete}
+          />
         </div>
       </div>
     </Modal>

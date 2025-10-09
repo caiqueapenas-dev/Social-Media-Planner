@@ -33,6 +33,7 @@ import {
 } from "@dnd-kit/sortable";
 import { format } from "date-fns";
 import { Modal } from "@/components/ui/modal";
+import { Instagram } from "lucide-react";
 
 interface PostFormProps {
   onSuccess: () => void;
@@ -61,6 +62,8 @@ export function PostForm({
   const [hashtagGroups, setHashtagGroups] = useState<HashtagGroup[]>([]);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(true);
 
   const [formData, setFormData] = useState({
     client_id: initialData?.client_id || "",
@@ -131,6 +134,75 @@ export function PostForm({
     }
   }, [formData.post_type]);
 
+  // Load draft on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!user) return;
+
+      const { data: draft } = await supabase
+        .from("drafts")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("post_id", initialData?.id || null)
+        .maybeSingle();
+
+      if (draft) {
+        if (
+          window.confirm(
+            "Encontramos um rascunho não salvo. Deseja restaurá-lo?"
+          )
+        ) {
+          setFormData(draft.form_data.formData);
+          setMediaPreviews(draft.form_data.mediaPreviews);
+          setDraftId(draft.id);
+        } else {
+          // User chose not to restore, so delete the draft
+          await supabase.from("drafts").delete().eq("id", draft.id);
+        }
+      }
+      setIsRestoring(false);
+    };
+
+    loadDraft();
+  }, [user, initialData]);
+
+  // Auto-save logic
+  useEffect(() => {
+    if (isRestoring || !user) return;
+
+    const saveDraft = async () => {
+      if (!onDirtyChange) return; // Only save if form is dirty
+
+      const draftData = {
+        user_id: user.id,
+        post_id: initialData?.id || null,
+        form_data: { formData, mediaPreviews },
+      };
+
+      if (draftId) {
+        await supabase.from("drafts").update(draftData).eq("id", draftId);
+      } else {
+        const { data } = await supabase
+          .from("drafts")
+          .insert(draftData)
+          .select("id")
+          .single();
+        if (data) {
+          setDraftId(data.id);
+        }
+      }
+    };
+
+    const debouncedSave = setTimeout(saveDraft, 2000); // Save 2 seconds after user stops typing
+    return () => clearTimeout(debouncedSave);
+  }, [formData, mediaPreviews, user, initialData, draftId, isRestoring]);
+
+  const clearDraft = async () => {
+    if (draftId) {
+      await supabase.from("drafts").delete().eq("id", draftId);
+    }
+  };
+
   const loadTemplatesAndHashtags = async () => {
     if (!formData.client_id || !user) return;
 
@@ -195,7 +267,37 @@ export function PostForm({
       });
     }
   };
+  const handleDelete = async () => {
+    if (!initialData?.id) return;
+    if (
+      window.confirm(
+        "Tem certeza que deseja excluir este post permanentemente?"
+      )
+    ) {
+      setIsSubmitting(true);
+      try {
+        const { error } = await supabase
+          .from("posts")
+          .delete()
+          .eq("id", initialData.id);
 
+        if (error) throw error;
+
+        toast.success("Post excluído com sucesso!");
+        onSuccess(); // Reutiliza o onSuccess para fechar modal e recarregar
+      } catch (error) {
+        console.error(error);
+        toast.error("Erro ao excluir o post.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const handleCancel = async () => {
+    await clearDraft();
+    onCancel();
+  };
   const removeMedia = (index: number) => {
     setMediaFiles((prev) => prev.filter((_, i) => i !== index));
     setMediaPreviews((prev) => prev.filter((_, i) => i !== index));
@@ -284,6 +386,7 @@ export function PostForm({
         toast.success("Post criado com sucesso!");
       }
 
+      await clearDraft();
       onSuccess();
     } catch (error) {
       console.error(error);
@@ -438,15 +541,16 @@ export function PostForm({
 
           <div className="space-y-2">
             <Label htmlFor="caption">Legenda *</Label>
-            <div className="relative">
-              <div className="relative">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Coluna da Esquerda: Textarea e Botões */}
+              <div>
                 <Textarea
                   id="caption"
                   value={formData.caption}
                   onChange={(e) =>
                     setFormData({ ...formData, caption: e.target.value })
                   }
-                  rows={8}
+                  rows={12}
                   placeholder={
                     formData.post_type === "story"
                       ? "Legendas não são aplicáveis para Stories."
@@ -455,29 +559,53 @@ export function PostForm({
                   required={formData.post_type !== "story"}
                   disabled={formData.post_type === "story"}
                 />
+                {formData.client_id && !(formData.post_type === "story") && (
+                  <div className="flex justify-end gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsTemplateModalOpen(true)}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Templates
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsHashtagModalOpen(true)}
+                    >
+                      <Hash className="h-4 w-4 mr-2" />
+                      Hashtags
+                    </Button>
+                  </div>
+                )}
               </div>
-              {formData.client_id && !(formData.post_type === "story") && (
-                <div className="flex justify-end gap-2 mt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsTemplateModalOpen(true)}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Templates
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsHashtagModalOpen(true)}
-                  >
-                    <Hash className="h-4 w-4 mr-2" />
-                    Hashtags
-                  </Button>
+
+              {/* Coluna da Direita: Preview */}
+              <div className="hidden md:block">
+                <Label className="text-muted-foreground">
+                  Preview (Instagram)
+                </Label>
+                <div className="mt-2 border rounded-lg p-3 h-full bg-muted/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                      <Instagram className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-semibold">
+                      {selectedClient?.name || "Cliente"}
+                    </span>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {formData.caption || (
+                      <span className="text-muted-foreground">
+                        Sua legenda aparecerá aqui...
+                      </span>
+                    )}
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -539,17 +667,17 @@ export function PostForm({
         <Button
           type="button"
           variant="outline"
-          onClick={onCancel}
+          onClick={handleCancel}
           className="flex-1"
           disabled={isSubmitting}
         >
           Cancelar
         </Button>
-        {initialData && onDelete && (
+        {initialData && (
           <Button
             type="button"
             variant="destructive"
-            onClick={() => onDelete(initialData.id)}
+            onClick={handleDelete}
             className="flex-1"
             disabled={isSubmitting}
           >

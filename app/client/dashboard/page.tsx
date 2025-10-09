@@ -124,12 +124,24 @@ export default function ClientDashboard() {
       return;
     }
 
-    // Adiciona a solicitação como um comentário
-    await supabase.from("post_comments").insert({
+    // Adiciona cada linha como uma solicitação de alteração separada
+    const alterationItems = alteration
+      .split("\n")
+      .filter((line) => line.trim() !== "");
+    if (alterationItems.length === 0) {
+      toast.error("Por favor, descreva a alteração necessária.");
+      return;
+    }
+
+    const newRequests = alterationItems.map((item) => ({
       post_id: post.id,
       user_id: user?.id,
-      content: `SOLICITAÇÃO DE ALTERAÇÃO: ${alteration}`,
-    });
+      content: item,
+      type: "alteration_request",
+      status: "pending",
+    }));
+
+    await supabase.from("post_comments").insert(newRequests);
 
     // O trigger no Supabase já cuida da notificação para o admin.
 

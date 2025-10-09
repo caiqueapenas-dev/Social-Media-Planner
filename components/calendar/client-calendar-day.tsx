@@ -31,7 +31,9 @@ export function ClientCalendarDay({
   const hasContent = posts.length > 0 || specialDate;
   if (!hasContent) return null;
 
-  const pendingCount = posts.filter((p) => p.status === "pending").length;
+  const pendingCount = posts.filter(
+    (p) => p.status === "pending" || p.status === "refactor"
+  ).length;
   const approvedCount = posts.filter((p) => p.status === "approved").length;
   const hasSpecialDate = !!specialDate;
 
@@ -77,11 +79,23 @@ export function ClientCalendarDay({
       return;
     }
 
-    await supabase.from("post_comments").insert({
+    const alterationItems = alteration
+      .split("\n")
+      .filter((line) => line.trim() !== "");
+    if (alterationItems.length === 0) {
+      toast.error("Por favor, descreva a alteração necessária.");
+      return;
+    }
+
+    const newRequests = alterationItems.map((item) => ({
       post_id: post.id,
       user_id: user?.id,
-      content: `SOLICITAÇÃO DE ALTERAÇÃO: ${alteration}`,
-    });
+      content: item,
+      type: "alteration_request",
+      status: "pending",
+    }));
+
+    await supabase.from("post_comments").insert(newRequests);
 
     toast.success("Alteração solicitada com sucesso!");
     setIsPostModalOpen(false);
@@ -96,6 +110,7 @@ export function ClientCalendarDay({
       approved: "bg-green-500",
       rejected: "bg-red-500",
       published: "bg-blue-500",
+      refactor: "bg-yellow-500", // Para o cliente, refactor tem a mesma cor de pendente
     };
     return colors[status] || colors.draft;
   };

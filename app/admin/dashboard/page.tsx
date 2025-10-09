@@ -20,6 +20,7 @@ import {
   Star,
   RefreshCw,
 } from "lucide-react";
+import { PostCard } from "@/components/post/post-card";
 import { formatDateTime, formatDate } from "@/lib/utils";
 import { Post, SpecialDate, Client } from "@/lib/types";
 import Link from "next/link";
@@ -132,67 +133,11 @@ export default function AdminDashboardImproved() {
       approved: { variant: "success", label: "Aprovado" },
       rejected: { variant: "destructive", label: "Rejeitado" },
       published: { variant: "default", label: "Publicado" },
-      refactor: { variant: "outline", label: "Em Refação" },
+      refactor: { variant: "outline", label: "Em Refação" }, // Este já estava correto, apenas confirmando.
     };
     const config = statusConfig[status] || statusConfig.draft;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
-
-  const PostCard = ({ post }: { post: Post }) => (
-    <div
-      className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
-      onClick={() => handlePostClick(post)}
-    >
-      {post.media_urls?.[0] && (
-        <img
-          src={post.media_urls[0]}
-          alt="Post preview"
-          className="w-20 h-20 rounded object-cover"
-        />
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-2">
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-cover bg-center"
-            style={{
-              backgroundColor: post.client?.brand_color,
-              backgroundImage: post.client?.avatar_url
-                ? `url(${post.client.avatar_url})`
-                : "none",
-            }}
-          >
-            {!post.client?.avatar_url && post.client?.name[0]}
-          </div>
-          <span className="font-medium text-sm">{post.client?.name}</span>
-          {getStatusBadge(post.status)}
-        </div>
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-          {post.caption}
-        </p>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {formatDateTime(post.scheduled_date)}
-          </span>
-          <span className="capitalize">{post.post_type}</span>
-        </div>
-        <div className="flex gap-1">
-          <PlatformButton
-            platform="instagram"
-            selected={post.platforms.includes("instagram")}
-            onToggle={() => {}}
-            readOnly
-          />
-          <PlatformButton
-            platform="facebook"
-            selected={post.platforms.includes("facebook")}
-            onToggle={() => {}}
-            readOnly
-          />
-        </div>
-      </div>
-    </div>
-  );
 
   const refactorPosts = posts.filter((p) => p.status === "refactor");
   const rejectedPosts = posts.filter((p) => p.status === "rejected");
@@ -291,7 +236,11 @@ export default function AdminDashboardImproved() {
             <CardContent>
               <div className="space-y-3">
                 {refactorPosts.slice(0, visibleItems.refactor).map((post) => (
-                  <PostCard key={post.id} post={post} />
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onClick={handlePostClick}
+                  />
                 ))}
               </div>
               {refactorPosts.length > visibleItems.refactor && (
@@ -319,7 +268,11 @@ export default function AdminDashboardImproved() {
             <CardContent>
               <div className="space-y-3">
                 {rejectedPosts.slice(0, visibleItems.rejected).map((post) => (
-                  <PostCard key={post.id} post={post} />
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onClick={handlePostClick}
+                  />
                 ))}
               </div>
               {rejectedPosts.length > visibleItems.rejected && (
@@ -347,7 +300,11 @@ export default function AdminDashboardImproved() {
             <CardContent>
               <div className="space-y-3">
                 {pendingPosts.slice(0, visibleItems.pending).map((post) => (
-                  <PostCard key={post.id} post={post} />
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onClick={handlePostClick}
+                  />
                 ))}
               </div>
               {pendingPosts.length > visibleItems.pending && (
@@ -378,7 +335,11 @@ export default function AdminDashboardImproved() {
               <>
                 <div className="space-y-3">
                   {approvedPosts.slice(0, visibleItems.approved).map((post) => (
-                    <PostCard key={post.id} post={post} />
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onClick={handlePostClick}
+                    />
                   ))}
                 </div>
 

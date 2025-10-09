@@ -103,8 +103,9 @@ export interface PostComment {
   content: string;
   created_at: string;
   user?: User;
+  type?: "comment" | "alteration_request";
+  status?: "pending" | "completed";
 }
-
 export interface Notification {
   id: string;
   user_id: string;

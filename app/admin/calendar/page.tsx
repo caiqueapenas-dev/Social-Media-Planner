@@ -24,6 +24,10 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Post, SpecialDate } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminCalendarWeekly } from "@/components/calendar/admin-calendar-weekly";
+import { AdminCalendarList } from "@/components/calendar/admin-calendar-list";
+import { addWeeks, subWeeks } from "date-fns";
 
 function CalendarView() {
   const searchParams = useSearchParams();
@@ -34,7 +38,9 @@ function CalendarView() {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isFormDirty, setIsFormDirty] = useState(false);
+  const [isPostFormModalOpen, setIsPostFormModalOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState("");
+  const [activeView, setActiveView] = useState("monthly");
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
 
   useEffect(() => {
@@ -139,6 +145,14 @@ function CalendarView() {
     setCurrentMonth(new Date());
   };
 
+  const previousWeek = () => {
+    setCurrentMonth(subWeeks(currentMonth, 1));
+  };
+
+  const nextWeek = () => {
+    setCurrentMonth(addWeeks(currentMonth, 1));
+  };
+
   const handleDayClick = (day: Date) => {
     setSelectedDate(day);
     setSelectedPost(null);
@@ -208,85 +222,130 @@ function CalendarView() {
         </div>
 
         {/* Calendar */}
-        <Card className="p-6">
-          {/* Month navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <Button variant="outline" size="icon" onClick={previousMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold capitalize">
-                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-              </h2>
-              <Button variant="outline" onClick={goToToday}>
-                Hoje
-              </Button>
-            </div>
-            <Button variant="outline" size="icon" onClick={nextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+        <Tabs defaultValue="monthly" onValueChange={setActiveView}>
+          <div className="flex justify-end">
+            <TabsList>
+              <TabsTrigger value="monthly">Mensal</TabsTrigger>
+              <TabsTrigger value="weekly">Semanal</TabsTrigger>
+              <TabsTrigger value="list">Lista</TabsTrigger>
+            </TabsList>
           </div>
-
-          {/* Weekday headers */}
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
-              <div
-                key={day}
-                className="text-center text-sm font-medium text-muted-foreground py-2"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-2">
-            {/* Empty cells for days before month starts */}
-            {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-              <div key={`empty-${i}`} className="aspect-square" />
-            ))}
-
-            {/* Days of month */}
-            {daysInMonth.map((day) => {
-              const dayPosts = getPostsForDay(day);
-              const specialDate = getSpecialDateForDay(day);
-              const isToday = isSameDay(day, new Date());
-
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={`relative group aspect-square border rounded-lg p-2 transition-colors ${
-                    isToday ? "border-primary border-2 bg-primary/5" : ""
-                  } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
+          <TabsContent value="monthly">
+            <Card className="p-6">
+              {/* Month navigation */}
+              <div className="flex items-center justify-between mb-6">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={
+                    activeView === "monthly" ? previousMonth : previousWeek
+                  }
                 >
-                  <div className="flex justify-between items-center mb-1">
-                    <div className="text-sm font-medium">
-                      {format(day, "d")}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleDayClick(day)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <AdminCalendarDay
-                    day={day}
-                    posts={dayPosts}
-                    specialDate={specialDate}
-                    onPostClick={handlePostClick}
-                    onEdit={(post) => {
-                      setSelectedPost(post);
-                      setIsPostModalOpen(true);
-                    }}
-                  />
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold capitalize">
+                    {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                  </h2>
+                  <Button variant="outline" onClick={goToToday}>
+                    Hoje
+                  </Button>
                 </div>
-              );
-            })}
-          </div>
-        </Card>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={activeView === "monthly" ? nextMonth : nextWeek}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 gap-2 mb-2">
+                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(
+                  (day) => (
+                    <div
+                      key={day}
+                      className="text-center text-sm font-medium text-muted-foreground py-2"
+                    >
+                      {day}
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-2">
+                {/* Empty cells for days before month starts */}
+                {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+                  <div key={`empty-${i}`} className="aspect-square" />
+                ))}
+
+                {/* Days of month */}
+                {daysInMonth.map((day) => {
+                  const dayPosts = getPostsForDay(day);
+                  const specialDate = getSpecialDateForDay(day);
+                  const isToday = isSameDay(day, new Date());
+
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={`relative group aspect-square border rounded-lg p-2 transition-colors ${
+                        isToday ? "border-primary border-2 bg-primary/5" : ""
+                      } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <div className="text-sm font-medium">
+                          {format(day, "d")}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDayClick(day)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <AdminCalendarDay
+                        day={day}
+                        posts={dayPosts}
+                        specialDate={specialDate}
+                        onPostClick={handlePostClick}
+                        onEdit={(post) => {
+                          setSelectedPost(post);
+                          setIsPostModalOpen(true);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          </TabsContent>
+          <TabsContent value="weekly">
+            <AdminCalendarWeekly
+              currentDate={currentMonth}
+              posts={posts}
+              specialDates={specialDates}
+              onDayClick={handleDayClick}
+              onPostClick={handlePostClick}
+              onEdit={(post) => {
+                setSelectedPost(post);
+                setIsPostModalOpen(true);
+              }}
+            />
+          </TabsContent>
+          <TabsContent value="list">
+            <AdminCalendarList
+              posts={posts}
+              onPostClick={(post) => {
+                setSelectedPost(post);
+                setIsPostModalOpen(true);
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Post Modal */}

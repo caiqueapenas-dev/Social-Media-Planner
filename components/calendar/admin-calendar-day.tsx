@@ -69,6 +69,7 @@ export function AdminCalendarDay({
       approved: "bg-green-500",
       rejected: "bg-red-500",
       published: "bg-blue-500",
+      refactor: "bg-orange-500",
     };
     return colors[status] || colors.draft;
   };
@@ -223,6 +224,10 @@ export function AdminCalendarDay({
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
               <span className="text-xs">Publicado</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+              <span className="text-xs">Em Refação</span>
             </div>
           </div>
         </div>
