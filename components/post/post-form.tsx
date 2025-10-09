@@ -13,7 +13,16 @@ import { PlatformButton } from "@/components/ui/platform-button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { SortableImage } from "@/components/post/sortable-image";
 import { useDropzone } from "react-dropzone";
-import { Upload, Hash, FileText, Sparkles, Trash2 } from "lucide-react";
+import {
+  Upload,
+  Hash,
+  FileText,
+  Sparkles,
+  Trash2,
+  Send,
+  X,
+  Loader2,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { uploadToCloudinary } from "@/lib/utils";
 import { PostType, Platform, CaptionTemplate, HashtagGroup } from "@/lib/types";
@@ -55,6 +64,7 @@ export function PostForm({
   const { user } = useAuthStore();
   const { clients } = useClientsStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<string[]>(
     initialData?.media_urls || []
@@ -458,6 +468,56 @@ export function PostForm({
     }
   };
 
+  const handlePublishToMeta = async () => {
+    if (!formData.client_id) {
+      toast.error("Selecione um cliente primeiro.");
+      return;
+    }
+    if (mediaPreviews.length === 0) {
+      toast.error("Adicione pelo menos uma mídia para publicar.");
+      return;
+    }
+
+    setIsPublishing(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of mediaFiles) {
+        const url = await uploadToCloudinary(file);
+        uploadedUrls.push(url);
+      }
+
+      const finalPostData = {
+        ...formData,
+        media_urls: [
+          ...mediaPreviews.filter((url) => url.startsWith("http")),
+          ...uploadedUrls,
+        ],
+      };
+
+      const response = await fetch("/api/meta/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: formData.client_id,
+          postData: finalPostData,
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        toast.success("Post agendado/publicado na Meta com sucesso!");
+        await clearDraft();
+        onSuccess();
+      } else {
+        toast.error(result.error || "Falha ao publicar na Meta.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Ocorreu um erro de rede.");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   const postTypeOptions = [
     { value: "photo", label: "Foto" },
     { value: "carousel", label: "Carrossel" },
@@ -466,6 +526,7 @@ export function PostForm({
   ];
 
   const selectedClient = clients.find((c) => c.id === formData.client_id);
+  const isLoading = isSubmitting || isPublishing;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -549,7 +610,7 @@ export function PostForm({
                     })),
                   ]}
                   required
-                  disabled={!!initialData} // Desativa a seleção ao editar qualquer post
+                  disabled={!!initialData || isLoading}
                 />
               </div>
             </div>
@@ -568,6 +629,7 @@ export function PostForm({
               }
               options={postTypeOptions}
               required
+              disabled={isLoading}
             />
             {formData.post_type === "carousel" && mediaPreviews.length > 1 && (
               <p className="text-xs text-muted-foreground">
@@ -595,7 +657,7 @@ export function PostForm({
                     : "Escreva a legenda do post..."
                 }
                 required={formData.post_type !== "story"}
-                disabled={formData.post_type === "story"}
+                disabled={formData.post_type === "story" || isLoading}
               />
               {formData.client_id && formData.post_type !== "story" && (
                 <div className="absolute bottom-2 right-2 flex gap-2">
@@ -604,6 +666,7 @@ export function PostForm({
                     variant="outline"
                     size="sm"
                     onClick={() => setIsTemplateModalOpen(true)}
+                    disabled={isLoading}
                   >
                     Templates
                   </Button>
@@ -612,6 +675,7 @@ export function PostForm({
                     variant="outline"
                     size="sm"
                     onClick={() => setIsHashtagModalOpen(true)}
+                    disabled={isLoading}
                   >
                     Hashtags
                   </Button>
@@ -627,11 +691,13 @@ export function PostForm({
                 platform="instagram"
                 selected={formData.platforms.includes("instagram")}
                 onToggle={() => togglePlatform("instagram")}
+                disabled={isLoading}
               />
               <PlatformButton
                 platform="facebook"
                 selected={formData.platforms.includes("facebook")}
                 onToggle={() => togglePlatform("facebook")}
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -644,28 +710,6 @@ export function PostForm({
             label="Data e Hora de Agendamento"
             required
           />
-
-          {/* Coluna da Direita: Preview */}
-          <div className="hidden md:block">
-            <Label className="text-muted-foreground">Preview (Instagram)</Label>
-            <div className="mt-2 border rounded-lg p-3 h-full bg-muted/30">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                  <Instagram className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <span className="text-sm font-semibold">
-                  {selectedClient?.name || "Cliente"}
-                </span>
-              </div>
-              <p className="text-sm whitespace-pre-wrap break-words">
-                {formData.caption || (
-                  <span className="text-muted-foreground">
-                    Sua legenda aparecerá aqui...
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Right Column */}
@@ -678,7 +722,7 @@ export function PostForm({
                 isDragActive ? "border-primary bg-primary/5" : "border-border"
               }`}
             >
-              <input {...getInputProps()} />
+              <input {...getInputProps()} disabled={isLoading} />
               <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
                 Arraste arquivos aqui ou clique para selecionar
@@ -695,62 +739,44 @@ export function PostForm({
                   {mediaPreviews.length > 1 ? "arquivos" : "arquivo"}) - Arraste
                   para reordenar
                 </Label>
-                <div
-                  className={cn(
-                    "relative mx-auto w-full rounded-xl overflow-hidden shadow-2xl bg-black",
-                    formData.post_type === "story"
-                      ? "max-w-[380px] aspect-[9/16]"
-                      : "max-w-[450px] aspect-[4/5]"
-                  )}
-                >
-                  {/* Media Background */}
-                  <div className="absolute inset-0">
+
+                {mediaPreviews.length > 1 ? (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={mediaPreviews.map((_, i) => `media-${i}`)}
+                      strategy={rectSortingStrategy}
+                    >
+                      <div className="grid grid-cols-4 gap-2">
+                        {mediaPreviews.map((preview, index) => (
+                          <SortableImage
+                            key={`media-${index}`}
+                            id={`media-${index}`}
+                            url={preview}
+                            index={index}
+                            onRemove={() => !isLoading && removeMedia(index)}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  <div className="relative group">
                     <img
                       src={mediaPreviews[0]}
                       alt="Preview"
-                      className="w-full h-full object-cover"
+                      className="w-full h-auto object-cover rounded-lg"
                     />
-                  </div>
-
-                  {/* Mockup Overlay */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    <img
-                      src={
-                        formData.post_type === "story"
-                          ? "https://res.cloudinary.com/dg7yrvjwu/image/upload/v1759977644/ST_lg5ujr.png"
-                          : "https://res.cloudinary.com/dg7yrvjwu/image/upload/v1759977644/FD_joazgf.png"
-                      }
-                      alt="Mockup"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                </div>
-
-                {/* Sortable Thumbnails */}
-                {mediaPreviews.length > 1 && (
-                  <div className="pt-4">
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd}
+                    <button
+                      type="button"
+                      onClick={() => !isLoading && removeMedia(0)}
+                      className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <SortableContext
-                        items={mediaPreviews.map((_, i) => `media-${i}`)}
-                        strategy={rectSortingStrategy}
-                      >
-                        <div className="grid grid-cols-4 gap-2">
-                          {mediaPreviews.map((preview, index) => (
-                            <SortableImage
-                              key={`media-${index}`}
-                              id={`media-${index}`}
-                              url={preview}
-                              index={index}
-                              onRemove={() => removeMedia(index)}
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -759,13 +785,13 @@ export function PostForm({
         </div>
       </div>
 
-      <div className="flex gap-2 pt-6 border-t">
+      <div className="flex flex-wrap gap-2 pt-6 border-t">
         <Button
           type="button"
           variant="outline"
           onClick={handleCancel}
           className="flex-1"
-          disabled={isSubmitting}
+          disabled={isLoading}
         >
           Cancelar
         </Button>
@@ -774,8 +800,7 @@ export function PostForm({
             type="button"
             variant="destructive"
             onClick={handleDelete}
-            className="flex-1"
-            disabled={isSubmitting}
+            disabled={isLoading}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Excluir
@@ -785,7 +810,7 @@ export function PostForm({
           type="submit"
           onClick={() => setFormData({ ...formData, status: "draft" })}
           variant="outline"
-          disabled={isSubmitting}
+          disabled={isLoading}
           className="flex-1"
         >
           Salvar Rascunho
@@ -793,10 +818,24 @@ export function PostForm({
         <Button
           type="submit"
           onClick={() => setFormData({ ...formData, status: "pending" })}
-          disabled={isSubmitting}
+          disabled={isLoading}
           className="flex-1"
         >
-          {isSubmitting ? "Salvando..." : "Enviar para Aprovação"}
+          <Send className="h-4 w-4 mr-2" />
+          {isSubmitting ? "Enviando..." : "Enviar para Aprovação"}
+        </Button>
+        <Button
+          type="button"
+          onClick={handlePublishToMeta}
+          disabled={isLoading}
+          className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+        >
+          {isPublishing ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Instagram className="h-4 w-4 mr-2" />
+          )}
+          {isPublishing ? "Publicando..." : "Publicar/Agendar na Meta"}
         </Button>
       </div>
     </form>

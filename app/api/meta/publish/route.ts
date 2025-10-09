@@ -1,0 +1,140 @@
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+
+const GRAPH_API_VERSION = "v24.0";
+const BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+
+/**
+ * Espera até que o contêiner de mídia esteja pronto para ser publicado.
+ * Necessário para mídias que têm processamento assíncrono, como vídeos.
+ * @param containerId - O ID do contêiner de mídia.
+ * @param accessToken - O token de acesso da página.
+ * @returns O status final.
+ */
+async function pollContainerStatus(
+  containerId: string,
+  accessToken: string
+): Promise<string> {
+  let status = "";
+  let attempts = 0;
+  const maxAttempts = 20; // Tenta por no máximo 1 minuto (20 * 3s)
+
+  while (status !== "FINISHED" && attempts < maxAttempts) {
+    const response = await fetch(
+      `${BASE_URL}/${containerId}?fields=status_code&access_token=${accessToken}`
+    );
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(
+        `Erro ao verificar status do contêiner: ${data.error.message}`
+      );
+    }
+
+    status = data.status_code;
+
+    if (status === "ERROR") {
+      const errorResponse = await fetch(
+        `${BASE_URL}/${containerId}?fields=error_message&access_token=${accessToken}`
+      );
+      const errorData = await errorResponse.json();
+      throw new Error(
+        `Erro no upload da mídia: ${
+          errorData.error_message || "Erro desconhecido"
+        }`
+      );
+    }
+
+    if (status !== "FINISHED") {
+      await new Promise((resolve) => setTimeout(resolve, 3000)); // Espera 3 segundos entre as tentativas
+    }
+    attempts++;
+  }
+
+  if (status !== "FINISHED") {
+    throw new Error("Tempo limite excedido para o processamento da mídia.");
+  }
+
+  return status;
+}
+
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const { clientId, postData } = await request.json();
+
+  if (!clientId || !postData) {
+    return NextResponse.json(
+      { error: "clientId e postData são obrigatórios." },
+      { status: 400 }
+    );
+  }
+
+  const { data: client } = await supabase
+    .from("clients")
+    .select("instagram_business_id, meta_page_access_token")
+    .eq("id", clientId)
+    .single();
+
+  if (
+    !client ||
+    !client.instagram_business_id ||
+    !client.meta_page_access_token
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Cliente não encontrado ou não configurado para publicação na Meta.",
+      },
+      { status: 404 }
+    );
+  }
+
+  const { instagram_business_id, meta_page_access_token } = client;
+  const caption = encodeURIComponent(postData.caption);
+
+  try {
+    let creationId: string;
+
+    // Lógica para criar o contêiner
+    if (postData.post_type === "photo") {
+      const url = `${BASE_URL}/${instagram_business_id}/media?image_url=${postData.media_urls[0]}&caption=${caption}&access_token=${meta_page_access_token}`;
+      const response = await fetch(url, { method: "POST" });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message);
+      creationId = data.id;
+    } else {
+      // Futuramente, adicionar lógica para Carrossel e Reels aqui.
+      return NextResponse.json(
+        {
+          error:
+            "Apenas posts do tipo 'Foto' são suportados para publicação direta no momento.",
+        },
+        { status: 501 }
+      );
+    }
+
+    // Publica ou agenda o contêiner
+    let publishUrl = `${BASE_URL}/${instagram_business_id}/media_publish?creation_id=${creationId}&access_token=${meta_page_access_token}`;
+
+    const scheduledDate = new Date(postData.scheduled_date);
+    const now = new Date();
+
+    // A API da Meta exige um agendamento com pelo menos 10 minutos de antecedência e no máximo 6 meses.
+    if (scheduledDate > new Date(now.getTime() + 10 * 60 * 1000)) {
+      const publishTime = Math.floor(scheduledDate.getTime() / 1000);
+      publishUrl += `&scheduled_publish_time=${publishTime}`;
+    }
+
+    const publishResponse = await fetch(publishUrl, { method: "POST" });
+    const publishData = await publishResponse.json();
+
+    if (publishData.error) {
+      throw new Error(`Erro ao publicar: ${publishData.error.message}`);
+    }
+
+    return NextResponse.json({ success: true, mediaId: publishData.id });
+  } catch (err: any) {
+    console.error("Erro na API da Meta:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

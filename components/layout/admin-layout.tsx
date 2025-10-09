@@ -18,6 +18,7 @@ import {
   Moon,
   Lightbulb,
   Star,
+  Download, // Importe o novo ícone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
@@ -29,6 +30,7 @@ const navigation = [
   { name: "Calendário", href: "/admin/calendar", icon: Calendar },
   { name: "Clientes", href: "/admin/clients", icon: Users },
   { name: "Datas Especiais", href: "/admin/special-dates", icon: Star },
+  { name: "Importar", href: "/admin/import", icon: Download }, // Adicione a nova rota aqui
   { name: "Insights", href: "/admin/insights", icon: Lightbulb },
   { name: "Configurações", href: "/admin/settings", icon: Settings },
 ];
