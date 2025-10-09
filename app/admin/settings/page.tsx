@@ -5,14 +5,20 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useClientsStore } from "@/store/useClientsStore";
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Hash } from "lucide-react";
+import { Plus, Trash2, Hash, KeyRound, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { CaptionTemplate, HashtagGroup, Client } from "@/lib/types";
 import { uploadToCloudinary } from "@/lib/utils";
@@ -24,13 +30,31 @@ export default function SettingsPage() {
   const supabase = createClient();
   const { user, setUser } = useAuthStore();
   const { clients, setClients } = useClientsStore();
-  const [captionTemplates, setCaptionTemplates] = useState<CaptionTemplateWithClient[]>([]);
-  const [hashtagGroups, setHashtagGroups] = useState<HashtagGroupWithClient[]>([]);
-  
-  const [newTemplate, setNewTemplate] = useState({ title: "", content: "", client_id: "" });
-  const [newHashtagGroup, setNewHashtagGroup] = useState({ title: "", hashtags: "", client_id: "" });
+  const [captionTemplates, setCaptionTemplates] = useState<
+    CaptionTemplateWithClient[]
+  >([]);
+  const [hashtagGroups, setHashtagGroups] = useState<HashtagGroupWithClient[]>(
+    []
+  );
+
+  const [newTemplate, setNewTemplate] = useState({
+    title: "",
+    content: "",
+    client_id: "",
+  });
+  const [newHashtagGroup, setNewHashtagGroup] = useState({
+    title: "",
+    hashtags: "",
+    client_id: "",
+  });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [selectedClientId, setSelectedClientId] = useState("");
+
+  const [isRefreshingTokens, setIsRefreshingTokens] = useState(false);
+  const [refreshResults, setRefreshResults] = useState<{
+    successful: string[];
+    failed: { name: string; reason: string }[];
+  } | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -40,10 +64,10 @@ export default function SettingsPage() {
     loadCaptionTemplates();
     loadHashtagGroups();
   }, [user, selectedClientId]);
-  
+
   const loadClients = async () => {
     const { data } = await supabase.from("clients").select("*").order("name");
-    if(data) setClients(data);
+    if (data) setClients(data);
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,7 +99,7 @@ export default function SettingsPage() {
     if (selectedClientId) {
       query = query.eq("client_id", selectedClientId);
     }
-    
+
     const { data } = await query;
     if (data) setCaptionTemplates(data as any);
   };
@@ -87,7 +111,7 @@ export default function SettingsPage() {
       .select(`*, client:clients(*)`)
       .eq("admin_id", user.id)
       .order("created_at", { ascending: false });
-    
+
     if (selectedClientId) {
       query = query.eq("client_id", selectedClientId);
     }
@@ -104,14 +128,12 @@ export default function SettingsPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("caption_templates")
-      .insert({
-        admin_id: user.id,
-        client_id: newTemplate.client_id,
-        title: newTemplate.title,
-        content: newTemplate.content,
-      });
+    const { error } = await supabase.from("caption_templates").insert({
+      admin_id: user.id,
+      client_id: newTemplate.client_id,
+      title: newTemplate.title,
+      content: newTemplate.content,
+    });
 
     if (error) {
       toast.error("Erro ao adicionar template");
@@ -151,14 +173,12 @@ export default function SettingsPage() {
       .filter((h) => h.trim())
       .map((h) => (h.startsWith("#") ? h : `#${h}`));
 
-    const { error } = await supabase
-      .from("hashtag_groups")
-      .insert({
-        admin_id: user.id,
-        client_id: newHashtagGroup.client_id,
-        title: newHashtagGroup.title,
-        hashtags: hashtagsArray,
-      });
+    const { error } = await supabase.from("hashtag_groups").insert({
+      admin_id: user.id,
+      client_id: newHashtagGroup.client_id,
+      title: newHashtagGroup.title,
+      hashtags: hashtagsArray,
+    });
 
     if (error) {
       toast.error("Erro ao adicionar grupo de hashtags");
@@ -185,6 +205,35 @@ export default function SettingsPage() {
     loadHashtagGroups();
   };
 
+  const handleRefreshToken = async () => {
+    if (
+      !confirm(
+        "Tem certeza de que deseja tentar renovar os tokens de acesso de todos os clientes?"
+      )
+    ) {
+      return;
+    }
+    setIsRefreshingTokens(true);
+    setRefreshResults(null);
+    try {
+      const response = await fetch("/api/meta/refresh-tokens", {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Falha ao iniciar a renovação.");
+      }
+
+      setRefreshResults(data);
+      toast.success(data.message || "Processo concluído!");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsRefreshingTokens(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -200,15 +249,20 @@ export default function SettingsPage() {
             <TabsTrigger value="profile">Perfil</TabsTrigger>
             <TabsTrigger value="templates">Templates de Legenda</TabsTrigger>
             <TabsTrigger value="hashtags">Grupos de Hashtags</TabsTrigger>
+            <TabsTrigger value="integrations">Integrações</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="profile" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Foto de Perfil</CardTitle>
               </CardHeader>
               <CardContent>
-                <Input type="file" onChange={handleAvatarChange} accept="image/*" />
+                <Input
+                  type="file"
+                  onChange={handleAvatarChange}
+                  accept="image/*"
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -218,18 +272,29 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle>Novo Template</CardTitle>
                 <CardDescription>
-                  Crie templates de legendas para reutilizar e associe a um cliente.
+                  Crie templates de legendas para reutilizar e associe a um
+                  cliente.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAddTemplate} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="template-client">Associar ao Cliente *</Label>
+                    <Label htmlFor="template-client">
+                      Associar ao Cliente *
+                    </Label>
                     <Select
                       id="template-client"
                       value={newTemplate.client_id}
-                      onChange={(e) => setNewTemplate({ ...newTemplate, client_id: e.target.value })}
-                      options={[{ value: "", label: "Selecione um cliente" }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
+                      onChange={(e) =>
+                        setNewTemplate({
+                          ...newTemplate,
+                          client_id: e.target.value,
+                        })
+                      }
+                      options={[
+                        { value: "", label: "Selecione um cliente" },
+                        ...clients.map((c) => ({ value: c.id, label: c.name })),
+                      ]}
                       required
                     />
                   </div>
@@ -239,7 +304,10 @@ export default function SettingsPage() {
                       id="template-title"
                       value={newTemplate.title}
                       onChange={(e) =>
-                        setNewTemplate({ ...newTemplate, title: e.target.value })
+                        setNewTemplate({
+                          ...newTemplate,
+                          title: e.target.value,
+                        })
                       }
                       placeholder="Ex: Promoção de Fim de Semana"
                       required
@@ -251,7 +319,10 @@ export default function SettingsPage() {
                       id="template-content"
                       value={newTemplate.content}
                       onChange={(e) =>
-                        setNewTemplate({ ...newTemplate, content: e.target.value })
+                        setNewTemplate({
+                          ...newTemplate,
+                          content: e.target.value,
+                        })
                       }
                       rows={4}
                       placeholder="Digite o conteúdo do template..."
@@ -299,7 +370,9 @@ export default function SettingsPage() {
                             {template.client && (
                               <span
                                 className="text-xs px-2 py-1 rounded-full text-white self-start"
-                                style={{ backgroundColor: template.client.brand_color }}
+                                style={{
+                                  backgroundColor: template.client.brand_color,
+                                }}
                               >
                                 {template.client.name}
                               </span>
@@ -325,23 +398,33 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="hashtags" className="space-y-4">
-            {/* Add new hashtag group */}
             <Card>
               <CardHeader>
                 <CardTitle>Novo Grupo de Hashtags</CardTitle>
                 <CardDescription>
-                  Organize hashtags em grupos para reutilizar e associe a um cliente.
+                  Organize hashtags em grupos para reutilizar e associe a um
+                  cliente.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAddHashtagGroup} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="hashtag-client">Associar ao Cliente *</Label>
+                    <Label htmlFor="hashtag-client">
+                      Associar ao Cliente *
+                    </Label>
                     <Select
                       id="hashtag-client"
                       value={newHashtagGroup.client_id}
-                      onChange={(e) => setNewHashtagGroup({ ...newHashtagGroup, client_id: e.target.value })}
-                      options={[{ value: "", label: "Selecione um cliente" }, ...clients.map(c => ({ value: c.id, label: c.name }))]}
+                      onChange={(e) =>
+                        setNewHashtagGroup({
+                          ...newHashtagGroup,
+                          client_id: e.target.value,
+                        })
+                      }
+                      options={[
+                        { value: "", label: "Selecione um cliente" },
+                        ...clients.map((c) => ({ value: c.id, label: c.name })),
+                      ]}
                       required
                     />
                   </div>
@@ -351,7 +434,10 @@ export default function SettingsPage() {
                       id="group-title"
                       value={newHashtagGroup.title}
                       onChange={(e) =>
-                        setNewHashtagGroup({ ...newHashtagGroup, title: e.target.value })
+                        setNewHashtagGroup({
+                          ...newHashtagGroup,
+                          title: e.target.value,
+                        })
                       }
                       placeholder="Ex: Marketing Digital"
                       required
@@ -363,7 +449,10 @@ export default function SettingsPage() {
                       id="group-hashtags"
                       value={newHashtagGroup.hashtags}
                       onChange={(e) =>
-                        setNewHashtagGroup({ ...newHashtagGroup, hashtags: e.target.value })
+                        setNewHashtagGroup({
+                          ...newHashtagGroup,
+                          hashtags: e.target.value,
+                        })
                       }
                       rows={4}
                       placeholder="Digite as hashtags separadas por espaço ou vírgula"
@@ -378,11 +467,10 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Hashtag groups list */}
             <Card>
               <CardHeader>
                 <CardTitle>Meus Grupos</CardTitle>
-                 <div className="space-y-2 pt-2">
+                <div className="space-y-2 pt-2">
                   <Label>Filtrar por Cliente</Label>
                   <Select
                     value={selectedClientId}
@@ -412,10 +500,12 @@ export default function SettingsPage() {
                               <Hash className="h-4 w-4" />
                               {group.title}
                             </h3>
-                             {group.client && (
+                            {group.client && (
                               <span
                                 className="text-xs px-2 py-1 rounded-full text-white self-start"
-                                style={{ backgroundColor: group.client.brand_color }}
+                                style={{
+                                  backgroundColor: group.client.brand_color,
+                                }}
                               >
                                 {group.client.name}
                               </span>
@@ -441,6 +531,72 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="integrations" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <KeyRound className="h-5 w-5 text-blue-500" />
+                  Renovação de Tokens da Meta
+                </CardTitle>
+                <CardDescription>
+                  Os tokens de acesso de longa duração expiram a cada 60 dias.
+                  Clique no botão abaixo para renovar os tokens de todos os seus
+                  clientes. Recomenda-se fazer isso a cada 30-45 dias.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={handleRefreshToken}
+                  disabled={isRefreshingTokens}
+                >
+                  <RefreshCw
+                    className={`mr-2 h-4 w-4 ${
+                      isRefreshingTokens ? "animate-spin" : ""
+                    }`}
+                  />
+                  {isRefreshingTokens
+                    ? "Renovando tokens..."
+                    : "Renovar Todos os Tokens"}
+                </Button>
+
+                {refreshResults && (
+                  <div className="mt-6 space-y-4 p-4 border rounded-lg bg-muted/50">
+                    <h3 className="font-semibold">Resultados da Renovação:</h3>
+                    {refreshResults.successful.length > 0 && (
+                      <div>
+                        <h4 className="text-green-600 font-medium">
+                          Sucesso ({refreshResults.successful.length}):
+                        </h4>
+                        <ul className="list-disc list-inside text-sm">
+                          {refreshResults.successful.map((name) => (
+                            <li key={name}>{name}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {refreshResults.failed.length > 0 && (
+                      <div className="mt-2">
+                        <h4 className="text-red-600 font-medium">
+                          Falhas ({refreshResults.failed.length}):
+                        </h4>
+                        <ul className="list-disc list-inside text-sm">
+                          {refreshResults.failed.map(({ name, reason }) => (
+                            <li key={name}>
+                              {name}:{" "}
+                              <span className="text-muted-foreground">
+                                {reason}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
