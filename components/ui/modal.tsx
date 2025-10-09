@@ -10,7 +10,7 @@ interface ModalProps {
   children: React.ReactNode;
   title?: string;
   description?: string;
-  size?: "sm" | "md" | "lg" | "xl" | "full";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "full";
 }
 
 export function Modal({
@@ -42,7 +42,7 @@ export function Modal({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div
         className={cn(
@@ -52,6 +52,7 @@ export function Modal({
             "w-full max-w-md": size === "md",
             "w-full max-w-2xl": size === "lg",
             "w-full max-w-4xl": size === "xl",
+            "w-full max-w-[70vw]": size === "2xl",
             "w-full h-full max-w-none max-h-none": size === "full",
           }
         )}
@@ -61,9 +62,7 @@ export function Modal({
           <div className="p-6 pb-4 border-b">
             <div className="flex items-start justify-between">
               <div>
-                {title && (
-                  <h2 className="text-lg font-semibold">{title}</h2>
-                )}
+                {title && <h2 className="text-lg font-semibold">{title}</h2>}
                 {description && (
                   <p className="text-sm text-muted-foreground mt-1">
                     {description}
@@ -82,11 +81,8 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   );
 }
-

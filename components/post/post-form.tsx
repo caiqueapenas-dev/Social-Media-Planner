@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useState, useCallback, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useClientsStore } from "@/store/useClientsStore";
@@ -577,6 +578,42 @@ export function PostForm({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="caption">Legenda *</Label>
+            <div className="relative">
+              <Textarea
+                id="caption"
+                value={formData.caption}
+                onChange={(e) =>
+                  setFormData({ ...formData, caption: e.target.value })
+                }
+                rows={8}
+                placeholder="Escreva a legenda do post..."
+                required
+              />
+              {formData.client_id && (
+                <div className="absolute bottom-2 right-2 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsTemplateModalOpen(true)}
+                  >
+                    Templates
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsHashtagModalOpen(true)}
+                  >
+                    Hashtags
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <Label>Plataformas *</Label>
             <div className="flex gap-2">
               <PlatformButton
@@ -601,73 +638,25 @@ export function PostForm({
             required
           />
 
-          <div className="space-y-2">
-            <Label htmlFor="caption">Legenda *</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Coluna da Esquerda: Textarea e Botões */}
-              <div>
-                <Textarea
-                  id="caption"
-                  value={formData.caption}
-                  onChange={(e) =>
-                    setFormData({ ...formData, caption: e.target.value })
-                  }
-                  rows={12}
-                  placeholder={
-                    formData.post_type === "story"
-                      ? "Legendas não são aplicáveis para Stories."
-                      : "Escreva a legenda do post..."
-                  }
-                  required={formData.post_type !== "story"}
-                  disabled={formData.post_type === "story"}
-                />
-                {formData.client_id && !(formData.post_type === "story") && (
-                  <div className="flex justify-end gap-2 mt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsTemplateModalOpen(true)}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Templates
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsHashtagModalOpen(true)}
-                    >
-                      <Hash className="h-4 w-4 mr-2" />
-                      Hashtags
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Coluna da Direita: Preview */}
-              <div className="hidden md:block">
-                <Label className="text-muted-foreground">
-                  Preview (Instagram)
-                </Label>
-                <div className="mt-2 border rounded-lg p-3 h-full bg-muted/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                      <Instagram className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <span className="text-sm font-semibold">
-                      {selectedClient?.name || "Cliente"}
-                    </span>
-                  </div>
-                  <p className="text-sm whitespace-pre-wrap break-words">
-                    {formData.caption || (
-                      <span className="text-muted-foreground">
-                        Sua legenda aparecerá aqui...
-                      </span>
-                    )}
-                  </p>
+          {/* Coluna da Direita: Preview */}
+          <div className="hidden md:block">
+            <Label className="text-muted-foreground">Preview (Instagram)</Label>
+            <div className="mt-2 border rounded-lg p-3 h-full bg-muted/30">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                  <Instagram className="h-5 w-5 text-muted-foreground" />
                 </div>
+                <span className="text-sm font-semibold">
+                  {selectedClient?.name || "Cliente"}
+                </span>
               </div>
+              <p className="text-sm whitespace-pre-wrap break-words">
+                {formData.caption || (
+                  <span className="text-muted-foreground">
+                    Sua legenda aparecerá aqui...
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -693,32 +682,70 @@ export function PostForm({
             </div>
 
             {mediaPreviews.length > 0 && (
-              <div>
-                <Label className="mb-2 block">
-                  {mediaPreviews.length} arquivo(s) - Arraste para reordenar
+              <div className="mt-4 space-y-2">
+                <Label>
+                  Preview ({mediaPreviews.length}{" "}
+                  {mediaPreviews.length > 1 ? "arquivos" : "arquivo"}) - Arraste
+                  para reordenar
                 </Label>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
+                <div
+                  className={cn(
+                    "relative mx-auto w-full rounded-xl overflow-hidden shadow-2xl bg-black",
+                    formData.post_type === "story"
+                      ? "max-w-[380px] aspect-[9/16]"
+                      : "max-w-[450px] aspect-[4/5]"
+                  )}
                 >
-                  <SortableContext
-                    items={mediaPreviews.map((_, i) => `media-${i}`)}
-                    strategy={rectSortingStrategy}
-                  >
-                    <div className="grid grid-cols-3 gap-4">
-                      {mediaPreviews.map((preview, index) => (
-                        <SortableImage
-                          key={`media-${index}`}
-                          id={`media-${index}`}
-                          url={preview}
-                          index={index}
-                          onRemove={() => removeMedia(index)}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                  {/* Media Background */}
+                  <div className="absolute inset-0">
+                    <img
+                      src={mediaPreviews[0]}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Mockup Overlay */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    <img
+                      src={
+                        formData.post_type === "story"
+                          ? "https://res.cloudinary.com/dg7yrvjwu/image/upload/v1759977644/ST_lg5ujr.png"
+                          : "https://res.cloudinary.com/dg7yrvjwu/image/upload/v1759977644/FD_joazgf.png"
+                      }
+                      alt="Mockup"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+
+                {/* Sortable Thumbnails */}
+                {mediaPreviews.length > 1 && (
+                  <div className="pt-4">
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={mediaPreviews.map((_, i) => `media-${i}`)}
+                        strategy={rectSortingStrategy}
+                      >
+                        <div className="grid grid-cols-4 gap-2">
+                          {mediaPreviews.map((preview, index) => (
+                            <SortableImage
+                              key={`media-${index}`}
+                              id={`media-${index}`}
+                              url={preview}
+                              index={index}
+                              onRemove={() => removeMedia(index)}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  </div>
+                )}
               </div>
             )}
           </div>

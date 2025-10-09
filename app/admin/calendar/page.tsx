@@ -387,7 +387,7 @@ function CalendarView() {
         isOpen={isPostModalOpen}
         onClose={handleClosePostModal}
         title={selectedPost ? "Editar Post" : "Novo Post"}
-        size="lg"
+        size="2xl"
       >
         <PostForm
           initialData={
