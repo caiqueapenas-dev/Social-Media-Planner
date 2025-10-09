@@ -6,22 +6,23 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Button } from "@/components/ui/button";
-import { 
-  Calendar, 
-  Users, 
-  LayoutDashboard, 
-  Settings, 
+import {
+  Calendar,
+  Users,
+  LayoutDashboard,
+  Settings,
   LogOut,
   Menu,
   X,
   Sun,
   Moon,
   Lightbulb,
-  Star
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import toast from "react-hot-toast";
+import { GlobalSearch } from "./global-search";
 
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -69,10 +70,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </div>
               <span className="font-bold text-lg">SMP</span>
             </div>
-            <button
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            >
+            <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -130,11 +128,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <div className="lg:pl-64">
-        <header className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
-          <button onClick={() => setSidebarOpen(true)}>
+        <header className="flex items-center justify-between p-4 border-b bg-card sticky top-0 z-10">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden">
             <Menu className="h-6 w-6" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex-1 flex justify-center lg:justify-start">
+            <GlobalSearch />
+          </div>
+          <div className="lg:hidden flex items-center gap-2">
             <div className="bg-primary p-2 rounded-lg">
               <Calendar className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -142,9 +143,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="w-6" />
         </header>
-        <main className="p-4 lg:p-8">
-          {children}
-        </main>
+        <main className="p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );
