@@ -55,6 +55,36 @@ export async function notifyPostApproved(postId: string, clientId: string) {
   }
 }
 
+export async function notifyPostApprovedLate(postId: string, clientId: string) {
+  const supabase = createClient();
+
+  const { data: admins } = await supabase
+    .from("users")
+    .select("id")
+    .eq("role", "admin");
+
+  if (!admins) return;
+
+  const { data: client } = await supabase
+    .from("clients")
+    .select("name")
+    .eq("id", clientId)
+    .single();
+
+  const message = `${
+    client?.name || "Um cliente"
+  } aprovou um post atrasado. A publicação precisa ser feita manualmente.`;
+
+  for (const admin of admins) {
+    await createNotification({
+      userId: admin.id,
+      title: "Post Aprovado com Atraso",
+      message,
+      link: `/admin/dashboard`,
+    });
+  }
+}
+
 export async function notifyPostRejected(postId: string, clientId: string) {
   const supabase = createClient();
 

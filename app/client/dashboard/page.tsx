@@ -112,47 +112,61 @@ export default function ClientDashboard() {
       changes: { status: { from: post.status, to: "approved" } },
     });
 
-    const { notifyPostApproved } = await import("@/lib/notifications");
-    await notifyPostApproved(post.id, post.client_id);
+    const scheduledDate = new Date(post.scheduled_date);
+    const now = new Date();
 
-    toast.promise(
-      fetch("/api/meta/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: post.client_id,
-          postData: { ...post, status: "approved" },
+    // Se o post foi aprovado com atraso
+    if (scheduledDate < now) {
+      const { notifyPostApprovedLate } = await import("@/lib/notifications");
+      await notifyPostApprovedLate(post.id, post.client_id);
+      toast.success(
+        "Post aprovado! O admin foi notificado para publicar manualmente pois o horário já passou.",
+        { duration: 6000 }
+      );
+    } else {
+      // Se o post foi aprovado a tempo
+      const { notifyPostApproved } = await import("@/lib/notifications");
+      await notifyPostApproved(post.id, post.client_id);
+
+      toast.promise(
+        fetch("/api/meta/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId: post.client_id,
+            postData: { ...post, status: "approved" },
+          }),
+        }).then(async (response) => {
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.error || "Falha ao agendar na Meta.");
+          }
+          return result;
         }),
-      }).then(async (response) => {
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.error || "Falha ao agendar na Meta.");
+        {
+          loading: "Post aprovado! Agendando na Meta...",
+          success: "Post agendado na Meta com sucesso!",
+          error: (err) => {
+            // Em caso de erro, reverte o post para refação e adiciona um comentário
+            const handleError = async () => {
+              await supabase
+                .from("posts")
+                .update({ status: "refactor" })
+                .eq("id", post.id);
+              await supabase.from("post_comments").insert({
+                post_id: post.id,
+                user_id: user?.id, // Pode ser melhor um ID de "sistema"
+                content: `Falha no agendamento automático: ${err.message}`,
+                type: "comment",
+              });
+              loadPosts();
+            };
+            handleError();
+            return `Erro no agendamento: ${err.message}`;
+          },
         }
-        return result;
-      }),
-      {
-        loading: "Post aprovado! Agendando na Meta...",
-        success: "Post agendado na Meta com sucesso!",
-        error: (err) => {
-          // Em caso de erro, reverte o post para refação e adiciona um comentário
-          const handleError = async () => {
-            await supabase
-              .from("posts")
-              .update({ status: "refactor" })
-              .eq("id", post.id);
-            await supabase.from("post_comments").insert({
-              post_id: post.id,
-              user_id: user?.id, // Pode ser melhor um ID de "sistema"
-              content: `Falha no agendamento automático: ${err.message}`,
-              type: "comment",
-            });
-            loadPosts();
-          };
-          handleError();
-          return `Erro no agendamento: ${err.message}`;
-        },
-      }
-    );
+      );
+    }
 
     loadPosts();
     setIsReviewModalOpen(false);
