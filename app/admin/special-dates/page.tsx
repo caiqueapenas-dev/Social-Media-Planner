@@ -235,7 +235,7 @@ export default function SpecialDatesPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {specialDates.map((date: any) => (
+                {specialDates.map((date) => (
                   <div
                     key={date.id}
                     className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"

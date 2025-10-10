@@ -156,9 +156,6 @@ export default function ClientCalendarPage() {
       changes: { status: { from: post.status, to: "approved" } },
     });
 
-    const { notifyPostApproved } = await import("@/lib/notifications");
-    await notifyPostApproved(post.id, post.client_id);
-
     toast.success("Post aprovado!");
     setIsModalOpen(false);
     setSelectedPost(null);
@@ -391,6 +388,8 @@ export default function ClientCalendarPage() {
                         posts={dayPosts}
                         specialDate={specialDate}
                         onPostUpdate={refreshPosts}
+                        onApprove={handleApprove}
+                        onRefactor={handleRequestAlteration}
                       />
                     </div>
                   );
@@ -427,6 +426,8 @@ export default function ClientCalendarPage() {
                         posts={getPostsForDay(day)}
                         specialDate={getSpecialDateForDay(day)}
                         onPostUpdate={refreshPosts}
+                        onApprove={handleApprove}
+                        onRefactor={handleRequestAlteration}
                       />
                     </div>
                   </div>

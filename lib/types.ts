@@ -106,6 +106,7 @@ export interface Insight {
   content: string;
   created_by: string;
   created_at: string;
+  user?: User;
 }
 
 export interface PostComment {

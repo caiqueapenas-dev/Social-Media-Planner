@@ -14,6 +14,8 @@ import toast from "react-hot-toast";
 interface ClientCalendarDayProps {
   posts: Post[];
   specialDate?: SpecialDate;
+  onApprove: (post: Post) => void;
+  onRefactor: (post: Post, feedback: string) => void;
   onPostUpdate: () => void;
 }
 
@@ -21,9 +23,9 @@ export function ClientCalendarDay({
   posts,
   specialDate,
   onPostUpdate,
+  onApprove,
+  onRefactor,
 }: ClientCalendarDayProps) {
-  const supabase = createClient();
-  const { user } = useAuthStore();
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -37,72 +39,6 @@ export function ClientCalendarDay({
   const approvedCount = posts.filter((p) => p.status === "approved").length;
   const publishedCount = posts.filter((p) => p.status === "published").length;
   const hasSpecialDate = !!specialDate;
-
-  const handleApprove = async (post: Post) => {
-    const { error } = await supabase
-      .from("posts")
-      .update({ status: "approved" })
-      .eq("id", post.id);
-
-    if (error) {
-      toast.error("Erro ao aprovar post");
-      return;
-    }
-
-    await supabase.from("edit_history").insert({
-      post_id: post.id,
-      edited_by: user?.id,
-      changes: { status: { from: post.status, to: "approved" } },
-    });
-
-    const { notifyPostApproved } = await import("@/lib/notifications");
-    await notifyPostApproved(post.id, post.client_id);
-
-    toast.success("Post aprovado!");
-    setIsPostModalOpen(false);
-    setSelectedPost(null);
-    onPostUpdate();
-  };
-
-  const handleRequestAlteration = async (post: Post, alteration: string) => {
-    if (!alteration.trim()) {
-      toast.error("Por favor, descreva a alteração necessária.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("posts")
-      .update({ status: "refactor" })
-      .eq("id", post.id);
-
-    if (error) {
-      toast.error("Erro ao solicitar alteração.");
-      return;
-    }
-
-    const alterationItems = alteration
-      .split("\n")
-      .filter((line) => line.trim() !== "");
-    if (alterationItems.length === 0) {
-      toast.error("Por favor, descreva a alteração necessária.");
-      return;
-    }
-
-    const newRequests = alterationItems.map((item) => ({
-      post_id: post.id,
-      user_id: user?.id,
-      content: item,
-      type: "alteration_request",
-      status: "pending",
-    }));
-
-    await supabase.from("post_comments").insert(newRequests);
-
-    toast.success("Alteração solicitada com sucesso!");
-    setIsPostModalOpen(false);
-    setSelectedPost(null);
-    onPostUpdate();
-  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -250,8 +186,8 @@ export function ClientCalendarDay({
             setIsPostModalOpen(false);
             setSelectedPost(null);
           }}
-          onApprove={handleApprove}
-          onRefactor={handleRequestAlteration}
+          onApprove={onApprove}
+          onRefactor={onRefactor}
           showEditButton={false}
         />
       )}

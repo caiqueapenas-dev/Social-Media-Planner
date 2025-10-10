@@ -32,7 +32,7 @@ export default function InsightsPage() {
     if (user) {
       // Record visit timestamp
       supabase
-        .from('user_insight_views')
+        .from("user_insight_views")
         .upsert({ user_id: user.id, last_viewed_at: new Date().toISOString() })
         .then();
     }
@@ -63,12 +63,14 @@ export default function InsightsPage() {
 
     let query = supabase
       .from("insights")
-      .select(`
+      .select(
+        `
         *,
         user:users!insights_created_by_fkey(id, full_name, email, avatar_url, role)
-      `)
+      `
+      )
       .eq("client_id", selectedClientId)
-      .order("created_at", { ascending: false});
+      .order("created_at", { ascending: false });
 
     const { data } = await query;
     if (data) {
@@ -89,11 +91,13 @@ export default function InsightsPage() {
           .from("insights")
           .update({ content: newInsight })
           .eq("id", editingInsight.id)
-          .select('*, user:users!insights_created_by_fkey(*)')
+          .select("*, user:users!insights_created_by_fkey(*)")
           .single();
         if (error) throw error;
         toast.success("Ideia atualizada!");
-        setInsights(insights.map(i => i.id === editingInsight.id ? data as any : i));
+        setInsights(
+          insights.map((i) => (i.id === editingInsight.id ? (data as any) : i))
+        );
       } else {
         // Handle insert
         const { data: newInsightData, error } = await supabase
@@ -102,14 +106,16 @@ export default function InsightsPage() {
             client_id: selectedClientId,
             content: newInsight,
             created_by: user.id,
-          }).select('*, user:users!insights_created_by_fkey(*)').single();
+          })
+          .select("*, user:users!insights_created_by_fkey(*)")
+          .single();
 
         if (error) throw error;
-        
+
         setInsights([newInsightData as any, ...insights]);
         toast.success("Ideia adicionada!");
       }
-      
+
       setNewInsight("");
       setEditingInsight(null);
     } catch (error) {
@@ -126,20 +132,21 @@ export default function InsightsPage() {
   };
 
   const handleDelete = async (ids: string[]) => {
-    if (!confirm(`Tem certeza que quer excluir ${ids.length} ideia(s)?`)) return;
+    if (!confirm(`Tem certeza que quer excluir ${ids.length} ideia(s)?`))
+      return;
     const { error } = await supabase.from("insights").delete().in("id", ids);
     if (error) {
       toast.error("Erro ao excluir ideia(s).");
     } else {
       toast.success("Ideia(s) excluída(s)!");
-      setInsights(insights.filter(i => !ids.includes(i.id)));
+      setInsights(insights.filter((i) => !ids.includes(i.id)));
       setSelectedInsights([]);
     }
   };
 
   const toggleSelection = (id: string) => {
-    setSelectedInsights(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    setSelectedInsights((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
@@ -168,43 +175,62 @@ export default function InsightsPage() {
             />
           </div>
           {selectedInsights.length > 0 && (
-            <Button variant="destructive" onClick={() => handleDelete(selectedInsights)}>
+            <Button
+              variant="destructive"
+              onClick={() => handleDelete(selectedInsights)}
+            >
               Excluir Selecionados ({selectedInsights.length})
             </Button>
           )}
         </div>
 
         {selectedClientId && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5" />
-                  {editingInsight ? `Editando Ideia para ${selectedClient?.name}` : `Adicionar Nova Ideia para ${selectedClient?.name}`}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <Textarea
-                    value={newInsight}
-                    onChange={(e) => setNewInsight(e.target.value)}
-                    placeholder="Compartilhe uma ideia de conteúdo..."
-                    rows={4}
-                    required
-                  />
-                  <div className="flex gap-2">
-                    <Button type="submit" disabled={isSubmitting} className="gap-2">
-                      <Send className="h-4 w-4" />
-                      {isSubmitting ? "Enviando..." : (editingInsight ? "Atualizar Ideia" : "Enviar Ideia")}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lightbulb className="h-5 w-5" />
+                {editingInsight
+                  ? `Editando Ideia para ${selectedClient?.name}`
+                  : `Adicionar Nova Ideia para ${selectedClient?.name}`}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Textarea
+                  value={newInsight}
+                  onChange={(e) => setNewInsight(e.target.value)}
+                  placeholder="Compartilhe uma ideia de conteúdo..."
+                  rows={4}
+                  required
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    {isSubmitting
+                      ? "Enviando..."
+                      : editingInsight
+                      ? "Atualizar Ideia"
+                      : "Enviar Ideia"}
+                  </Button>
+                  {editingInsight && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingInsight(null);
+                        setNewInsight("");
+                      }}
+                    >
+                      Cancelar Edição
                     </Button>
-                    {editingInsight && (
-                      <Button variant="outline" onClick={() => { setEditingInsight(null); setNewInsight(""); }}>
-                        Cancelar Edição
-                      </Button>
-                    )}
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+                  )}
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         )}
 
         <Card>
@@ -215,48 +241,64 @@ export default function InsightsPage() {
             {insights.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Lightbulb className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>{selectedClientId ? "Nenhuma ideia compartilhada para este cliente." : "Selecione um cliente para ver as ideias."}</p>
+                <p>
+                  {selectedClientId
+                    ? "Nenhuma ideia compartilhada para este cliente."
+                    : "Selecione um cliente para ver as ideias."}
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {insights.map((insight: any) => {
-                  const isByAdmin = insight.user?.role === 'admin';
-                  const author = isByAdmin ? insight.user : selectedClient;
+                {insights.map((insight) => {
+                  const insightTyped = insight as Insight;
+                  const author = insightTyped.user;
+                  const isByAdmin = author?.role === "admin";
+                  const authorName = author?.full_name || "Usuário";
                   const authorRole = isByAdmin ? "Admin" : "Cliente";
 
                   return (
                     <div
-                      key={insight.id}
-                      className={`border rounded-lg p-4 space-y-2 transition-colors ${selectedInsights.includes(insight.id) ? 'bg-primary/10' : ''}`}
+                      key={insightTyped.id}
+                      className={`border rounded-lg p-4 space-y-2 transition-colors ${
+                        selectedInsights.includes(insightTyped.id)
+                          ? "bg-primary/10"
+                          : ""
+                      }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <input
                             type="checkbox"
-                            checked={selectedInsights.includes(insight.id)}
-                            onChange={() => toggleSelection(insight.id)}
+                            checked={selectedInsights.includes(insightTyped.id)}
+                            onChange={() => toggleSelection(insightTyped.id)}
                             className="cursor-pointer"
                           />
                           <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-cover bg-center"
                             style={{
-                              backgroundColor: author?.brand_color || "#8b5cf6",
-                              backgroundImage: author?.avatar_url ? `url(${author.avatar_url})` : 'none'
+                              backgroundColor: !isByAdmin
+                                ? selectedClient?.brand_color
+                                : "#8b5cf6",
+                              backgroundImage: author?.avatar_url
+                                ? `url(${author.avatar_url})`
+                                : "none",
                             }}
                           >
-                            {!author?.avatar_url && (author?.name?.[0] || author?.full_name?.[0] || "?")}
+                            {!author?.avatar_url && (authorName[0] || "?")}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-medium text-sm">
-                                {author?.name || author?.full_name || "Usuário"}
+                                {authorName}
                               </p>
-                              <Badge variant={isByAdmin ? 'default' : 'secondary'}>
+                              <Badge
+                                variant={isByAdmin ? "default" : "secondary"}
+                              >
                                 {authorRole}
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              {formatDateTime(insight.created_at)}
+                              {formatDateTime(insightTyped.created_at)}
                             </p>
                           </div>
                         </div>
@@ -264,21 +306,21 @@ export default function InsightsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleEdit(insight)}
+                            onClick={() => handleEdit(insightTyped)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete([insight.id])}
+                            onClick={() => handleDelete([insightTyped.id])}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
                       <p className="text-sm whitespace-pre-wrap pl-12">
-                        {insight.content}
+                        {insightTyped.content}
                       </p>
                     </div>
                   );

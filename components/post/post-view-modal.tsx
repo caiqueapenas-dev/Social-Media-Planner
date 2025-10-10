@@ -334,15 +334,7 @@ export function PostViewModal({
             <TabsTrigger value="alterations">Alterações</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
           </TabsList>
-          <TabsContent value="comments" className="mt-4">
-            <PostComments
-              postId={post.id}
-              comments={normalComments}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelection}
-              onDelete={handleDelete}
-            />
-          </TabsContent>
+          <TabsContent value="comments" className="mt-4"></TabsContent>
           <TabsContent value="alterations" className="mt-4">
             <AlterationChecklist
               postId={post.id}

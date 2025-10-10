@@ -259,8 +259,18 @@ export function PostForm({
   }, [formData, mediaPreviews, user, initialData, draftId, isRestoring]);
 
   const clearDraft = async () => {
+    // Limpa o rascunho atual se ele existir
     if (draftId) {
       await supabase.from("drafts").delete().eq("id", draftId);
+      setDraftId(null);
+    }
+    // Limpa qualquer rascunho antigo de "novo post" que possa ter ficado para trás
+    if (!initialData?.id && user) {
+      await supabase
+        .from("drafts")
+        .delete()
+        .eq("user_id", user.id)
+        .is("post_id", null);
     }
   };
 
@@ -507,10 +517,6 @@ export function PostForm({
         if (error) throw error;
         savedPost = data;
 
-        if (formData.status === "pending" && formData.client_id && savedPost) {
-          const { notifyNewPost } = await import("@/lib/notifications");
-          await notifyNewPost(savedPost.id, formData.client_id);
-        }
         toast.success("Post criado com sucesso!");
       }
 

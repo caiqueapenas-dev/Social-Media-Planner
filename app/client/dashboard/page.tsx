@@ -148,16 +148,12 @@ function DashboardContent() {
 
     // Se o post foi aprovado com atraso
     if (isTooLateToSchedule) {
-      const { notifyPostApprovedLate } = await import("@/lib/notifications");
-      await notifyPostApprovedLate(post.id, post.client_id);
       toast.success(
         "Post aprovado! O admin foi notificado para publicar manualmente, pois o horário de agendamento está muito próximo ou já passou.",
         { duration: 6000 }
       );
     } else {
       // Se o post foi aprovado a tempo
-      const { notifyPostApproved } = await import("@/lib/notifications");
-      await notifyPostApproved(post.id, post.client_id);
 
       toast.success("Post aprovado!");
     }

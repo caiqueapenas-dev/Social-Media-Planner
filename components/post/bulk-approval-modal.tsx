@@ -35,8 +35,9 @@ export function BulkApprovalModal({
   const handleApprove = async (post: Post) => {
     const scheduledDate = new Date(post.scheduled_date);
     const now = new Date();
-    const isLate = scheduledDate < now;
-    const newStatus = isLate ? "late_approved" : "approved";
+    const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
+    const newStatus =
+      scheduledDate < tenMinutesFromNow ? "late_approved" : "approved";
 
     const { error } = await supabase
       .from("posts")
@@ -44,8 +45,8 @@ export function BulkApprovalModal({
       .eq("id", post.id);
 
     if (error) {
-      toast.error("Erro ao aprovar post.");
-      return;
+      toast.error("Erro ao aprovar post. Tente novamente.");
+      return; // Impede de avançar para o próximo post
     }
 
     toast.success("Post aprovado!", { duration: 1500 });
@@ -63,8 +64,8 @@ export function BulkApprovalModal({
       .eq("id", post.id);
 
     if (error) {
-      toast.error("Erro ao solicitar alteração.");
-      return;
+      toast.error("Erro ao solicitar alteração. Tente novamente.");
+      return; // Impede de avançar para o próximo post
     }
 
     await supabase.from("post_comments").insert({
