@@ -363,7 +363,6 @@ $$;
 CREATE OR REPLACE FUNCTION public.update_client_user(
   p_user_id UUID,
   p_email TEXT,
-  p_password TEXT,
   p_name TEXT,
   p_avatar_url TEXT,
   p_brand_color TEXT
@@ -372,8 +371,6 @@ RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
-DECLARE
-  json_meta JSONB;
 BEGIN
   -- Atualiza o perfil na tabela public.users
   UPDATE public.users
@@ -384,16 +381,6 @@ BEGIN
   UPDATE public.clients
   SET name = p_name, email = p_email, brand_color = p_brand_color, avatar_url = p_avatar_url
   WHERE user_id = p_user_id;
-
-  -- Prepara os metadados para a atualização de autenticação
-  json_meta := jsonb_build_object('full_name', p_name, 'avatar_url', p_avatar_url);
-
-  -- Atualiza o usuário no sistema de autenticação do Supabase
-  IF p_password IS NOT NULL AND p_password <> '' THEN
-    PERFORM auth.admin_update_user_by_id(p_user_id, jsonb_build_object('email', p_email, 'password', p_password, 'user_metadata', json_meta));
-  ELSE
-    PERFORM auth.admin_update_user_by_id(p_user_id, jsonb_build_object('email', p_email, 'user_metadata', json_meta));
-  END IF;
 END;
 $$;
 

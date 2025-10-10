@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -40,8 +40,33 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { user } = useAuthStore();
+  const { user, setUser, isLoading, setLoading } = useAuthStore();
   const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      if (authUser) {
+        if (!user || user.id !== authUser.id) {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", authUser.id)
+            .single();
+
+          if (userData) {
+            setUser(userData as any);
+          }
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchUser();
+  }, [supabase, setUser, setLoading, user]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -98,12 +123,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
           <div className="p-4 border-t space-y-2">
-            <div className="flex items-center gap-2 px-3 py-2">
-              <div className="flex-1">
-                <p className="text-sm font-medium">{user?.full_name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+            {isLoading ? (
+              <div className="px-3 py-2 space-y-2">
+                <div className="h-4 w-3/4 rounded bg-muted animate-pulse"></div>
+                <div className="h-3 w-full rounded bg-muted animate-pulse"></div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-2">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{user?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
