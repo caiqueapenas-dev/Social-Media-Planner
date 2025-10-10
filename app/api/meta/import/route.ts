@@ -15,7 +15,9 @@ export async function POST(request: Request) {
   // Busca as credenciais do cliente no DB
   const { data: client, error } = await supabase
     .from("clients")
-    .select("instagram_business_id, meta_page_access_token")
+    .select(
+      "instagram_business_id, meta_page_access_token, last_import_timestamp"
+    )
     .eq("id", clientId)
     .single();
 
@@ -26,20 +28,57 @@ export async function POST(request: Request) {
     );
   }
 
-  const { instagram_business_id, meta_page_access_token } = client;
-  const fields =
-    "id,media_type,media_url,permalink,thumbnail_url,timestamp,caption,children{media_url,media_type}";
-  const url = `https://graph.facebook.com/v24.0/${instagram_business_id}/media?fields=${fields}&access_token=${meta_page_access_token}`;
+  const {
+    instagram_business_id,
+    meta_page_access_token,
+    last_import_timestamp,
+  } = client;
 
   try {
-    const response = await fetch(url);
-    const data = await response.json();
+    const fetchAllPages = async (url: string) => {
+      let allData: any[] = [];
+      let nextUrl: string | null = url;
 
-    if (data.error) {
-      return NextResponse.json({ error: data.error.message }, { status: 500 });
+      interface ApiResponse {
+        data: any[];
+        paging?: { next?: string | null };
+        error?: { message: string };
+      }
+
+      while (nextUrl) {
+        const response: Response = await fetch(nextUrl);
+        const data: ApiResponse = await response.json();
+        if (data.error) {
+          throw new Error(
+            `Erro na API da Meta: ${data.error.message} (URL: ${nextUrl})`
+          );
+        }
+        allData.push(...data.data);
+        nextUrl = data.paging?.next || null;
+      }
+      return allData;
+    };
+
+    const sinceFilter = last_import_timestamp
+      ? `&since=${Math.floor(new Date(last_import_timestamp).getTime() / 1000)}`
+      : "";
+
+    const mediaFields =
+      "id,media_type,media_url,permalink,thumbnail_url,timestamp,caption,children{media_url,media_type}";
+    const mediaUrl = `https://graph.facebook.com/v24.0/${instagram_business_id}/media?fields=${mediaFields}&limit=100&access_token=${meta_page_access_token}${sinceFilter}`;
+    const allMedia = await fetchAllPages(mediaUrl);
+
+    const storyFields =
+      "id,media_type,media_url,permalink,thumbnail_url,timestamp,caption";
+    const storiesUrl = `https://graph.facebook.com/v24.0/${instagram_business_id}/stories?fields=${storyFields}&limit=100&access_token=${meta_page_access_token}`;
+    const allStories = await fetchAllPages(storiesUrl);
+
+    const combinedData = [...allMedia, ...allStories];
+
+    if (combinedData.length === 0) {
+      return NextResponse.json([]);
     }
 
-    // Mapear e salvar os posts no banco de dados
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -50,39 +89,42 @@ export async function POST(request: Request) {
       );
     }
 
-    // Mapear e salvar os posts no banco de dados
-    const postsToInsert = data.data.map((post: any) => ({
-      client_id: clientId,
-      caption: post.caption || "",
-      scheduled_date: post.timestamp,
-      status: "published", // Status para posts já publicados
-      post_type: post.media_type.toLowerCase().includes("carousel")
-        ? "carousel"
-        : post.media_type.toLowerCase().includes("video")
-        ? "reel"
-        : "photo",
-      platforms: ["instagram"],
-      media_urls: post.children
-        ? post.children.data.map((child: any) => child.media_url)
-        : [post.media_url],
-      created_by: user.id, // Assumindo que o admin que importa é o criador
-      meta_post_id: post.id,
-    }));
+    const postsToInsert = combinedData.map((post: any) => {
+      let post_type: "photo" | "carousel" | "reel" | "story" = "photo";
+      if (post.media_type === "CAROUSEL_ALBUM") post_type = "carousel";
+      else if (post.media_type === "VIDEO") post_type = "reel";
+      else if (post.media_type === "STORY") post_type = "story";
+
+      return {
+        client_id: clientId,
+        caption: post.caption || "",
+        scheduled_date: post.timestamp,
+        status: "published",
+        post_type: post_type,
+        platforms: ["instagram"],
+        media_urls: post.children
+          ? post.children.data.map((child: any) => child.media_url)
+          : [post.media_url],
+        created_by: user.id,
+        meta_post_id: post.id,
+      };
+    });
 
     if (postsToInsert.length > 0) {
-      await supabase
+      const { error: upsertError } = await supabase
         .from("posts")
         .upsert(postsToInsert, { onConflict: "meta_post_id" });
+      if (upsertError) throw upsertError;
     }
 
-    // Atualizar o timestamp de última importação
     await supabase
       .from("clients")
       .update({ last_import_timestamp: new Date().toISOString() })
       .eq("id", clientId);
 
-    return NextResponse.json(data.data);
+    return NextResponse.json(combinedData);
   } catch (err: any) {
+    console.error("Erro na importação da Meta:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

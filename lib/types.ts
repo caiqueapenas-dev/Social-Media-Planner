@@ -53,6 +53,7 @@ export interface Post {
   updated_at: string;
   client?: Client;
   edit_history?: EditHistory[];
+  meta_post_id?: string;
 }
 
 export interface EditHistory {

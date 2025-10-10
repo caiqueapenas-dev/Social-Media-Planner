@@ -391,12 +391,18 @@ export default function AdminDashboardImproved() {
                           )}
                         </div>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span
-                            className="px-2 py-1 rounded-full text-white"
-                            style={{ backgroundColor: date.client.brand_color }}
-                          >
-                            {date.client.name}
-                          </span>
+                          {date.client ? (
+                            <span
+                              className="text-xs px-2 py-1 rounded-full text-white"
+                              style={{
+                                backgroundColor: date.client.brand_color,
+                              }}
+                            >
+                              {date.client.name}
+                            </span>
+                          ) : (
+                            <Badge variant="outline">Público</Badge>
+                          )}
                           <span>{formatDate(date.date + "T00:00:00")}</span>
                         </div>
                       </div>
