@@ -414,6 +414,7 @@ export function PostForm({
 
       const postData = {
         ...formData,
+        scheduled_date: new Date(formData.scheduled_date).toISOString(),
         media_urls: [
           ...mediaPreviews.filter((url) => url.startsWith("http")),
           ...uploadedUrls,
