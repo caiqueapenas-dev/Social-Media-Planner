@@ -9,9 +9,16 @@ interface SortableImageProps {
   url: string;
   index: number;
   onRemove: () => void;
+  customLabel?: string; // Novo campo
 }
 
-export function SortableImage({ id, url, index, onRemove }: SortableImageProps) {
+export function SortableImage({
+  id,
+  url,
+  index,
+  onRemove,
+  customLabel,
+}: SortableImageProps) {
   const {
     attributes,
     listeners,
@@ -28,17 +35,13 @@ export function SortableImage({ id, url, index, onRemove }: SortableImageProps) 
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="relative group"
-    >
+    <div ref={setNodeRef} style={style} className="relative group">
       <img
         src={url}
         alt={`Media ${index + 1}`}
         className="w-full h-32 object-cover rounded-lg"
       />
-      
+
       {/* Drag handle */}
       <button
         type="button"
@@ -49,9 +52,9 @@ export function SortableImage({ id, url, index, onRemove }: SortableImageProps) 
         <GripVertical className="h-4 w-4" />
       </button>
 
-      {/* Index badge */}
+      {/* Index/Custom Label badge */}
       <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-        {index + 1}
+        {customLabel || index + 1}
       </div>
 
       {/* Remove button */}
@@ -65,4 +68,3 @@ export function SortableImage({ id, url, index, onRemove }: SortableImageProps) 
     </div>
   );
 }
-

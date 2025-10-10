@@ -342,8 +342,10 @@ export default function ClientCalendarPage() {
           </div>
 
           <TabsContent value="monthly">
+                       {" "}
             <Card
-              className="p-6"
+              key={format(currentMonth, "yyyy-MM")} // Força a re-renderização na mudança de mês
+              className="p-6 animate-fade-in" // Adiciona a animação
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -397,8 +399,10 @@ export default function ClientCalendarPage() {
             </Card>
           </TabsContent>
           <TabsContent value="weekly">
+                       {" "}
             <Card
-              className="p-4"
+              key={format(currentMonth, "yyyy-ww")} // Força a re-renderização na mudança de semana
+              className="p-4 animate-fade-in" // Adiciona a animação
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}

@@ -133,7 +133,22 @@ export async function POST(request: Request) {
         throw new Error("Reels precisam de um vídeo.");
       }
 
-      const reelContainerUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=REELS&video_url=${postData.media_urls[0]}&caption=${caption}&thumb_offset=1000&access_token=${meta_page_access_token}`;
+      // Verifica se o usuário carregou uma capa customizada (seria o segundo item na array)
+      const hasCustomCover = postData.media_urls.length > 1;
+      const videoUrl = postData.media_urls[0];
+      const coverUrl = hasCustomCover ? postData.media_urls[1] : null;
+
+      let reelContainerUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=REELS&video_url=${videoUrl}&caption=${caption}&access_token=${meta_page_access_token}`;
+
+      if (coverUrl) {
+        // Se houver capa customizada, use cover_url.
+        reelContainerUrl += `&cover_url=${coverUrl}`;
+      } else {
+        // Se não houver, use thumb_offset para pegar o primeiro frame (1 segundo),
+        // cumprindo o requisito do usuário.
+        reelContainerUrl += `&thumb_offset=1000`;
+      }
+
       const reelContainerResponse = await fetch(reelContainerUrl, {
         method: "POST",
       });

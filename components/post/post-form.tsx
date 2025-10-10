@@ -302,12 +302,39 @@ export function PostForm({
     });
   }, []);
 
+  // Define a lista de aceitação de arquivos e o limite máximo com base no tipo de post
+  const isReel = formData.post_type === "reel";
+  const isStory = formData.post_type === "story";
+  const isPhoto = formData.post_type === "photo";
+  const isCarousel = formData.post_type === "carousel";
+
+  let acceptedFiles: Record<string, string[]> = {
+    "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"],
+    "video/*": [".mp4", ".mov"],
+  };
+
+  let maxFiles = 10; // Padrão para Carrossel
+  if (isReel) {
+    maxFiles = 2; // Vídeo + Capa (opcional)
+    acceptedFiles = {
+      "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"],
+      "video/*": [".mp4", ".mov"],
+    };
+  } else if (isPhoto || isStory) {
+    maxFiles = 1;
+    acceptedFiles =
+      isStory || isPhoto
+        ? {
+            "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"],
+            "video/*": [".mp4", ".mov"],
+          }
+        : { "image/*": [".png", ".jpg", ".jpeg"] };
+  }
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "image/*": [".png", ".jpg", ".jpeg", ".gif"],
-      "video/*": [".mp4", ".mov"],
-    },
+    accept: acceptedFiles,
+    maxFiles: maxFiles,
     maxSize: 50 * 1024 * 1024,
   });
 
@@ -775,7 +802,8 @@ export function PostForm({
                 <Label>
                   Preview ({mediaPreviews.length}{" "}
                   {mediaPreviews.length > 1 ? "arquivos" : "arquivo"}) - Arraste
-                  para reordenar
+                  {isReel && " para definir a capa (2º item) ou reordenar"}
+                  {!isReel && " para reordenar"}
                 </Label>
 
                 {mediaPreviews.length > 1 ? (
@@ -796,6 +824,14 @@ export function PostForm({
                             url={preview}
                             index={index}
                             onRemove={() => !isLoading && removeMedia(index)}
+                            // Passa o rótulo especial para Reels
+                            customLabel={
+                              isReel && index === 0
+                                ? "Vídeo Principal"
+                                : isReel && index === 1
+                                ? "Capa (Opcional)"
+                                : undefined
+                            }
                           />
                         ))}
                       </div>

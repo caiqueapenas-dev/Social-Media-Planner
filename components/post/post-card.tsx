@@ -6,12 +6,17 @@ import { Post } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { PlatformButton } from "@/components/ui/platform-button";
-import { Calendar } from "lucide-react";
+import { Calendar, Video, Image as ImageIcon } from "lucide-react"; // Adicionado Video e ImageIcon
 
 interface PostCardProps {
   post: Post;
   onClick: (post: Post) => void;
 }
+
+const isVideoFile = (url: string) => {
+  // Verifica as extensões de vídeo comuns
+  return /\.(mp4|mov|webm|avi|flv)$/i.test(url);
+};
 
 const getStatusBadge = (status: string) => {
   const statusConfig: Record<string, { variant: any; label: string }> = {
@@ -28,18 +33,40 @@ const getStatusBadge = (status: string) => {
 };
 
 export function PostCard({ post, onClick }: PostCardProps) {
+  const mediaUrl = post.media_urls?.[0];
+  const isVideo = mediaUrl && isVideoFile(mediaUrl);
+
   return (
     <div
       className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
       onClick={() => onClick(post)}
     >
-      {post.media_urls?.[0] && (
-        <img
-          src={post.media_urls[0]}
-          alt="Post preview"
-          className="w-20 h-20 rounded object-cover"
-        />
+      {mediaUrl ? (
+        <div className="w-20 h-20 rounded flex-shrink-0 relative overflow-hidden bg-muted flex items-center justify-center">
+          {isVideo ? (
+            // Renderiza um ícone de vídeo para Reels
+            <>
+              <Video className="h-8 w-8 text-muted-foreground" />
+              <div className="absolute inset-0 bg-black/30 flex items-end justify-center text-[10px] text-white font-bold pb-0.5">
+                REEL
+              </div>
+            </>
+          ) : (
+            // Renderiza imagem para foto/carrossel
+            <img
+              src={mediaUrl}
+              alt="Post preview"
+              className="w-full h-full object-cover"
+            />
+          )}
+        </div>
+      ) : (
+        // Placeholder se não houver mídia
+        <div className="w-20 h-20 rounded flex-shrink-0 bg-secondary flex items-center justify-center">
+          <ImageIcon className="h-8 w-8 text-muted-foreground" />
+        </div>
       )}
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2">
           <div
