@@ -8,9 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PostViewModal } from "@/components/post/post-view-modal";
-import { Calendar, CheckCircle, Clock, Eye, History } from "lucide-react";
+import {
+  Calendar,
+  CheckCircle,
+  Clock,
+  CopyCheck,
+  Eye,
+  History,
+} from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { formatDateTime } from "@/lib/utils";
+import { BulkApprovalModal } from "@/components/post/bulk-approval-modal";
 import { Post } from "@/lib/types";
 import toast from "react-hot-toast";
 
@@ -21,6 +29,7 @@ export default function ClientDashboard() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [visiblePosts, setVisiblePosts] = useState({
     pending: 3,
     approved: 3,
@@ -303,10 +312,20 @@ export default function ClientDashboard() {
         {pendingPosts.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Posts para Revisão
-              </CardTitle>
+              <div className="flex flex-col items-start gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Posts para Revisão
+                </CardTitle>
+                <Button
+                  onClick={() => setIsBulkModalOpen(true)}
+                  className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  style={{ backgroundColor: "#8b5cf6" }}
+                >
+                  <CopyCheck className="h-4 w-4" />
+                  Aprovação em Massa
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -486,6 +505,18 @@ export default function ClientDashboard() {
           onApprove={() => handleApprove(selectedPost)}
           onRefactor={handleRequestAlteration}
           showEditButton={false}
+        />
+      )}
+
+      {isBulkModalOpen && (
+        <BulkApprovalModal
+          posts={pendingPosts}
+          isOpen={isBulkModalOpen}
+          onClose={() => setIsBulkModalOpen(false)}
+          onFinish={() => {
+            setIsBulkModalOpen(false);
+            loadPosts(); // Recarrega os posts após a aprovação em massa
+          }}
         />
       )}
     </ClientLayout>

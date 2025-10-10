@@ -197,12 +197,15 @@ export async function POST(request: Request) {
     const scheduledDate = new Date(postData.scheduled_date);
     const now = new Date();
 
+    // A API da Meta não suporta agendamento de stories. Eles são publicados imediatamente.
+    // Apenas tentamos agendar se for um post futuro.
     if (postData.post_type !== "story" && scheduledDate > now) {
       const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
       const seventyFiveDaysFromNow = new Date(
         now.getTime() + 75 * 24 * 60 * 60 * 1000
       );
 
+      // Verifica se a data está dentro da janela de agendamento permitida pela Meta.
       if (
         scheduledDate >= tenMinutesFromNow &&
         scheduledDate <= seventyFiveDaysFromNow
@@ -210,11 +213,13 @@ export async function POST(request: Request) {
         const publishTime = Math.floor(scheduledDate.getTime() / 1000);
         publishUrl += `&scheduled_publish_time=${publishTime}`;
       } else if (scheduledDate > seventyFiveDaysFromNow) {
+        // Se a data for muito distante, lança um erro claro.
         throw new Error(
-          "A data de agendamento não pode ser superior a 75 dias."
+          "A data de agendamento não pode ser superior a 75 dias no futuro."
         );
       }
-      // Se for menos de 10 minutos no futuro, a API publicará imediatamente, o que é o comportamento esperado para o botão "Publicar Agora".
+      // Se for menos de 10 minutos no futuro, a API publicará imediatamente (comportamento padrão),
+      // o que é correto para o botão "Publicar Agora".
     }
 
     const publishResponse = await fetch(publishUrl, { method: "POST" });

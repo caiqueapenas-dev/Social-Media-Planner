@@ -47,7 +47,8 @@ export function PostViewModal({
   onReject,
   onRefactor,
   showEditButton = true,
-}: PostViewModalProps) {
+  title = "Visualizar Post",
+}: PostViewModalProps & { title?: string }) {
   const [feedback, setFeedback] = useState("");
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -164,7 +165,7 @@ export function PostViewModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Visualizar Post" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

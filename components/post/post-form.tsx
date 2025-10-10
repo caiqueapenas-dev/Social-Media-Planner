@@ -73,6 +73,7 @@ export function PostForm({
   const [hashtagGroups, setHashtagGroups] = useState<HashtagGroup[]>([]);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
 
@@ -393,7 +394,31 @@ export function PostForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setDateError(null); // Limpa erros anteriores
     setIsSubmitting(true);
+
+    // Validação de data para agendamento
+    if (formData.status === "approved" || formData.status === "late_approved") {
+      const scheduledDate = new Date(formData.scheduled_date);
+      const tenMinutesFromNow = new Date(Date.now() + 10 * 60 * 1000);
+
+      // O botão "Publicar Agora" já ajusta a data, então essa validação é para o "Agendar/Reagendar"
+      if (scheduledDate < tenMinutesFromNow) {
+        // Verifica se o clique não veio do "Publicar Agora" (que já lida com o tempo)
+        const isPublishNowClick =
+          e.nativeEvent instanceof SubmitEvent &&
+          (e.nativeEvent.submitter as HTMLButtonElement)?.id ===
+            "publish-now-btn";
+
+        if (!isPublishNowClick) {
+          setDateError(
+            "Para agendar, a data deve ser pelo menos 10 minutos no futuro. Para publicar imediatamente, use o botão 'Publicar Agora'."
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    }
 
     try {
       const uploadedUrls: string[] = [];
@@ -462,10 +487,11 @@ export function PostForm({
         toast.success("Post criado com sucesso!");
       }
 
-      // Se o post foi salvo para ser publicado/agendado
+      // Se o post foi salvo para ser publicado/agendado, incluindo o "Publicar Agora"
       if (
         (formData.status === "approved" ||
-          formData.status === "late_approved") &&
+          formData.status === "late_approved" ||
+          formData.status === "published") &&
         savedPost
       ) {
         const publishedSuccessfully = await handlePublishToMeta(savedPost);
@@ -719,6 +745,9 @@ export function PostForm({
             label="Data e Hora de Agendamento"
             required
           />
+          {dateError && (
+            <p className="text-sm text-destructive mt-2">{dateError}</p>
+          )}
         </div>
 
         {/* Right Column */}
@@ -839,7 +868,9 @@ export function PostForm({
           disabled={isLoading}
           className="flex-1 bg-gradient-to-r from-green-500 to-teal-500 text-white"
         >
-          {isSubmitting && formData.status !== "draft" && formData.status !== "pending" ? (
+          {isSubmitting &&
+          formData.status !== "draft" &&
+          formData.status !== "pending" ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
             <CheckCircle className="h-4 w-4 mr-2" />
@@ -847,15 +878,14 @@ export function PostForm({
           Agendar/Reagendar
         </Button>
         <Button
+          id="publish-now-btn"
           type="submit"
           onClick={() => {
-            const now = new Date();
-            // Adiciona 10 minutos para dar margem para o processo da API
-            now.setMinutes(now.getMinutes() + 10);
+            // Define o status como 'published' e a data para o momento exato do clique
             setFormData({
               ...formData,
-              status: "approved",
-              scheduled_date: now.toISOString().slice(0, 16),
+              status: "published", // Mudamos o status para 'published' diretamente
+              scheduled_date: new Date().toISOString().slice(0, 16),
             });
           }}
           disabled={isLoading}
