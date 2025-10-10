@@ -48,8 +48,14 @@ export default function ImportPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setImportedPosts(data);
-        toast.success(`${data.length} posts importados com sucesso!`);
+        if (data.length > 0) {
+          setImportedPosts(data);
+          toast.success(`${data.length} posts importados com sucesso!`);
+        } else {
+          toast.success(
+            "Nada para importar, a lista de posts já está atualizada."
+          );
+        }
       } else {
         toast.error(data.error || "Falha ao importar posts.");
       }
