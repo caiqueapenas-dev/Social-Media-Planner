@@ -66,7 +66,7 @@ export default function SpecialDatesPage() {
       .order("date", { ascending: true });
 
     if (selectedClientId) {
-      query = query.eq("client_id", selectedClientId);
+      query = query.or(`client_id.eq.${selectedClientId},client_id.is.null`);
     }
 
     const { data } = await query;

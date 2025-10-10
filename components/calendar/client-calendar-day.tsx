@@ -35,6 +35,7 @@ export function ClientCalendarDay({
     (p) => p.status === "pending" || p.status === "refactor"
   ).length;
   const approvedCount = posts.filter((p) => p.status === "approved").length;
+  const publishedCount = posts.filter((p) => p.status === "published").length;
   const hasSpecialDate = !!specialDate;
 
   const handleApprove = async (post: Post) => {
@@ -152,6 +153,12 @@ export function ClientCalendarDay({
               title={`${approvedCount} aprovado(s)`}
             />
           )}
+          {publishedCount > 0 && (
+            <div
+              className="w-2 h-2 rounded-full bg-blue-500"
+              title={`${publishedCount} publicado(s)`}
+            />
+          )}
         </div>
       </div>
 
@@ -244,7 +251,7 @@ export function ClientCalendarDay({
             setSelectedPost(null);
           }}
           onApprove={handleApprove}
-          onrefactor={handleRequestAlteration}
+          onRefactor={handleRequestAlteration}
           showEditButton={false}
         />
       )}

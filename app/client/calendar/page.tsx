@@ -6,7 +6,14 @@ import { ClientLayout } from "@/components/layout/client-layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClientCalendarDay } from "@/components/calendar/client-calendar-day";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  isSameMonth,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { Post, SpecialDate } from "@/lib/types";
@@ -30,8 +37,10 @@ export default function ClientCalendarPage() {
   }, [clientId, currentMonth]);
 
   const loadClientData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (user) {
       const { data: clientData } = await supabase
         .from("clients")
@@ -63,7 +72,7 @@ export default function ClientCalendarPage() {
     const { data } = await supabase
       .from("special_dates")
       .select("*")
-      .eq("client_id", clientId);
+      .or(`client_id.eq.${clientId},client_id.is.null`);
 
     if (data) {
       setSpecialDates(data);
@@ -82,20 +91,27 @@ export default function ClientCalendarPage() {
 
   const getSpecialDateForDay = (day: Date) => {
     return specialDates.find((sd) => {
-      const sdDate = new Date(sd.date + 'T00:00:00');
+      const sdDate = new Date(sd.date + "T00:00:00");
       if (sd.recurrent) {
-        return sdDate.getUTCDate() === day.getUTCDate() && sdDate.getUTCMonth() === day.getUTCMonth();
+        return (
+          sdDate.getUTCDate() === day.getUTCDate() &&
+          sdDate.getUTCMonth() === day.getUTCMonth()
+        );
       }
       return isSameDay(sdDate, day);
     });
   };
 
   const previousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+    );
   };
 
   const nextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+    );
   };
 
   const goToToday = () => {
@@ -124,7 +140,9 @@ export default function ClientCalendarPage() {
               <h2 className="text-xl font-semibold capitalize">
                 {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
               </h2>
-              <Button variant="outline" onClick={goToToday}>Hoje</Button>
+              <Button variant="outline" onClick={goToToday}>
+                Hoje
+              </Button>
             </div>
             <Button variant="outline" size="icon" onClick={nextMonth}>
               <ChevronRight className="h-4 w-4" />
@@ -190,6 +208,10 @@ export default function ClientCalendarPage() {
           <div className="flex items-center gap-2">
             <Star className="h-3 w-3 text-blue-500 fill-blue-500" />
             <span>Data Especial</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <span>Publicado</span>
           </div>
           <p className="text-muted-foreground text-xs">
             Clique nos dias para ver detalhes e aprovar posts

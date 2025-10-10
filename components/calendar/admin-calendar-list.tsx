@@ -9,10 +9,14 @@ import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
-import { CheckCircle, Trash2, XCircle } from "lucide-react";
+import { CheckCircle, Star, Trash2, XCircle, RefreshCw } from "lucide-react";
+import { SpecialDate } from "@/lib/types";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface AdminCalendarListProps {
   posts: Post[];
+  specialDates: SpecialDate[];
   onPostClick: (post: Post) => void;
   onBulkDelete: (postIds: string[]) => void;
   onBulkStatusChange: (postIds: string[], status: Post["status"]) => void;
@@ -28,6 +32,7 @@ const statusFilters = [
 
 export function AdminCalendarList({
   posts,
+  specialDates,
   onPostClick,
   onBulkDelete,
   onBulkStatusChange,
@@ -43,10 +48,31 @@ export function AdminCalendarList({
     );
   };
 
-  const filteredPosts = posts.filter((post) => {
+  const combinedItems = [
+    ...posts.map((post) => ({
+      ...post,
+      type: "post",
+      date: post.scheduled_date,
+    })),
+    ...specialDates.map((sd: SpecialDate) => ({
+      ...sd,
+      type: "special-date",
+      date: sd.date,
+    })),
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const filteredItems = combinedItems.filter((item: any) => {
     if (activeFilter === "all") return true;
-    return post.status === activeFilter;
+    if (item.type === "special-date") {
+      return true; // Always show special dates regardless of the filter
+    }
+    // For posts, filter by status
+    return item.status === activeFilter;
   });
+
+  const filteredPosts = filteredItems.filter(
+    (item) => item.type === "post"
+  ) as (Post & { type: "post"; date: string })[];
 
   return (
     <div className="space-y-4">
@@ -120,23 +146,78 @@ export function AdminCalendarList({
         ))}
       </div>
       <div className="space-y-3">
-        {filteredPosts.length > 0 ? (
-          filteredPosts.map((post) => (
-            <div key={post.id} className="flex items-center gap-3">
-              <Checkbox
-                checked={selectedPosts.includes(post.id)}
-                onCheckedChange={() => toggleSelection(post.id)}
-              />
+        {filteredItems.length > 0 ? (
+          filteredItems.map((item: any) => (
+            <div
+              key={`${item.type}-${item.id}`}
+              className="flex items-start gap-3"
+            >
+              {item.type === "post" ? (
+                <Checkbox
+                  className="mt-4"
+                  checked={selectedPosts.includes(item.id)}
+                  onCheckedChange={() => toggleSelection(item.id)}
+                />
+              ) : (
+                <div className="w-4 flex-shrink-0" /> // Placeholder for alignment
+              )}
               <div className="flex-1">
-                <PostCard post={post} onClick={onPostClick} />
+                {item.type === "post" ? (
+                  <PostCard post={item as Post} onClick={onPostClick} />
+                ) : (
+                  <SpecialDateCard
+                    specialDate={item as SpecialDate & { client: any }}
+                  />
+                )}
               </div>
             </div>
           ))
         ) : (
           <p className="text-center text-muted-foreground py-8">
-            Nenhum post encontrado para este filtro.
+            Nenhum item encontrado para este filtro.
           </p>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SpecialDateCard({
+  specialDate,
+}: {
+  specialDate: SpecialDate & { client: any };
+}) {
+  return (
+    <div className="flex items-start gap-4 p-4 rounded-lg border bg-blue-50 dark:bg-blue-900/20">
+      <Star className="h-5 w-5 text-blue-500 mt-1 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center flex-wrap gap-2 mb-1">
+          <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+            {specialDate.title}
+          </h3>
+          {specialDate.recurrent && (
+            <Badge variant="secondary" className="gap-1">
+              <RefreshCw className="h-3 w-3" /> Anual
+            </Badge>
+          )}
+          {specialDate.client ? (
+            <span
+              className="text-xs px-2 py-1 rounded-full text-white"
+              style={{ backgroundColor: specialDate.client.brand_color }}
+            >
+              {specialDate.client.name}
+            </span>
+          ) : (
+            <Badge variant="outline">Público</Badge>
+          )}
+        </div>
+        <p className="text-sm text-blue-800 dark:text-blue-200">
+          {format(
+            new Date(specialDate.date + "T00:00:00"),
+            "dd 'de' MMMM 'de' yyyy",
+            { locale: ptBR }
+          )}
+        </p>
       </div>
     </div>
   );

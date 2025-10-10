@@ -399,6 +399,7 @@ function CalendarView() {
           <TabsContent value="list">
             <AdminCalendarList
               posts={posts}
+              specialDates={specialDates}
               onPostClick={(post) => {
                 setSelectedPost(post);
                 setIsPostModalOpen(true);
