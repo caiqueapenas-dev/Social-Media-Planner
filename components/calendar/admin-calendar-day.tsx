@@ -136,25 +136,6 @@ export function AdminCalendarDay({
               </div>
             </div>
           )}
-          {specialDate &&
-            (!selectedClient ||
-              selectedClient.id === specialDate.client_id) && (
-              <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                <div className="flex items-start gap-2">
-                  <Star className="h-5 w-5 text-blue-500 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                      {specialDate.title}
-                    </h3>
-                    {specialDate.description && (
-                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                        {specialDate.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
           {(selectedClient
             ? posts.filter((p) => p.client_id === selectedClient.id)

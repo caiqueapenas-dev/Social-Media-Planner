@@ -329,22 +329,7 @@ function CalendarView() {
                 {/* Days of month */}
                 {daysInMonth.map((day) => {
                   const dayPosts = getPostsForDay(day);
-                  const uniqueSpecialDates = Array.from(
-                    new Map(
-                      specialDates.map((sd) => [sd.title + sd.date, sd])
-                    ).values()
-                  );
-                  const specialDate = uniqueSpecialDates.find((sd) => {
-                    // ... (restante da lógica da função getSpecialDateForDay)
-                    const sdDate = new Date(sd.date + "T00:00:00");
-                    if (sd.recurrent) {
-                      return (
-                        sdDate.getUTCDate() === day.getUTCDate() &&
-                        sdDate.getUTCMonth() === day.getUTCMonth()
-                      );
-                    }
-                    return isSameDay(sdDate, day);
-                  });
+                  const specialDate = getSpecialDateForDay(day);
                   const isToday = isSameDay(day, new Date());
 
                   return (
