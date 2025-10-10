@@ -32,6 +32,7 @@ export interface Client {
   logo_url?: string;
   created_at: string;
   updated_at: string;
+  last_import_timestamp?: string | null;
   // Adicionando os novos campos da API da Meta
   meta_page_id?: string | null;
   instagram_business_id?: string | null;

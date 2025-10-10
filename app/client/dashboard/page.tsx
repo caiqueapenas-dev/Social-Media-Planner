@@ -103,7 +103,45 @@ export default function ClientDashboard() {
     const { notifyPostApproved } = await import("@/lib/notifications");
     await notifyPostApproved(post.id, post.client_id);
 
-    toast.success("Post aprovado!");
+    toast.promise(
+      fetch("/api/meta/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: post.client_id,
+          postData: { ...post, status: "approved" },
+        }),
+      }).then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || "Falha ao agendar na Meta.");
+        }
+        return result;
+      }),
+      {
+        loading: "Post aprovado! Agendando na Meta...",
+        success: "Post agendado na Meta com sucesso!",
+        error: (err) => {
+          // Em caso de erro, reverte o post para refação e adiciona um comentário
+          const handleError = async () => {
+            await supabase
+              .from("posts")
+              .update({ status: "refactor" })
+              .eq("id", post.id);
+            await supabase.from("post_comments").insert({
+              post_id: post.id,
+              user_id: user?.id, // Pode ser melhor um ID de "sistema"
+              content: `Falha no agendamento automático: ${err.message}`,
+              type: "comment",
+            });
+            loadPosts();
+          };
+          handleError();
+          return `Erro no agendamento: ${err.message}`;
+        },
+      }
+    );
+
     loadPosts();
     setIsReviewModalOpen(false);
   };
@@ -342,7 +380,7 @@ export default function ClientDashboard() {
             setSelectedPost(null);
           }}
           onApprove={() => handleApprove(selectedPost)}
-          onrefactor={handleRequestAlteration}
+          onRefactor={handleRequestAlteration}
           showEditButton={false}
         />
       )}

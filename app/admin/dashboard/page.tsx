@@ -261,8 +261,8 @@ export default function AdminDashboardImproved() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-destructive" />
-                Posts Rejeitados
+                <Calendar className="h-5 w-5 text-blue-500" />
+                Próximos Posts Agendados
               </CardTitle>
             </CardHeader>
             <CardContent>

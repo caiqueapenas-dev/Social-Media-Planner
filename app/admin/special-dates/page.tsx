@@ -99,22 +99,30 @@ export default function SpecialDatesPage() {
       toast.success("Data atualizada!");
     } else {
       // Logic for creating special dates for multiple clients
-      const clientsToCreate = formData.all_clients
-        ? clients.map((c) => c.id)
-        : formData.client_ids;
+      const records = formData.all_clients
+        ? [
+            {
+              client_id: null, // Global event
+              title: formData.title,
+              date: formData.date,
+              description: formData.description,
+              recurrent: formData.recurrent,
+            },
+          ]
+        : formData.client_ids.map((clientId) => ({
+            client_id: clientId,
+            title: formData.title,
+            date: formData.date,
+            description: formData.description,
+            recurrent: formData.recurrent,
+          }));
 
-      if (clientsToCreate.length === 0) {
-        toast.error("Selecione ao menos um cliente.");
+      if (records.length === 0) {
+        toast.error(
+          "Selecione ao menos um cliente ou marque 'Todos os Clientes'."
+        );
         return;
       }
-
-      const records = clientsToCreate.map((clientId) => ({
-        client_id: clientId,
-        title: formData.title,
-        date: formData.date,
-        description: formData.description,
-        recurrent: formData.recurrent,
-      }));
 
       const { error } = await supabase.from("special_dates").insert(records);
 

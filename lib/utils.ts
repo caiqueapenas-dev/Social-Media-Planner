@@ -13,18 +13,23 @@ export function formatDate(date: Date | string): string {
     year: "numeric",
   });
 }
-
 export function formatDateTime(date: Date | string): string {
+  if (!date) {
+    return "Data inválida";
+  }
   const d = new Date(date);
+  if (isNaN(d.getTime())) {
+    return "Data inválida";
+  }
   return d.toLocaleString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
   });
 }
-
 export function getInitials(name: string): string {
   if (!name) return "";
   return name

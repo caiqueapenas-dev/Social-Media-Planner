@@ -46,12 +46,13 @@ function CalendarView() {
   useEffect(() => {
     loadClients();
     loadPosts();
+    loadSpecialDates(); // Carrega as datas especiais
 
     // Open new post modal if query param is present
     if (searchParams?.get("newPost") === "true") {
       setIsPostModalOpen(true);
     }
-  }, [searchParams, selectedClientId]);
+  }, [searchParams, selectedClientId, currentMonth]);
 
   const loadClients = async () => {
     const { data } = await supabase
@@ -77,12 +78,24 @@ function CalendarView() {
       .order("scheduled_date", { ascending: true });
 
     if (selectedClientId) {
-      query = query.eq("client_id", selectedClientId);
+      query = query.or(`client_id.eq.${selectedClientId},client_id.is.null`);
     }
 
     const { data } = await query;
     if (data) {
-      setPosts(data as unknown as Post[]);
+      const now = new Date();
+      const postsToUpdate = data.filter(
+        (p) => p.status === "approved" && new Date(p.scheduled_date) <= now
+      );
+
+      if (postsToUpdate.length > 0) {
+        const updates = postsToUpdate.map((p) =>
+          supabase.from("posts").update({ status: "published" }).eq("id", p.id)
+        );
+        Promise.all(updates).then(() => loadPosts()); // Recarrega após a atualização
+      } else {
+        setPosts(data as unknown as Post[]);
+      }
     }
   };
 
@@ -93,7 +106,7 @@ function CalendarView() {
       .order("date", { ascending: true });
 
     if (selectedClientId) {
-      query = query.eq("client_id", selectedClientId);
+      query = query.or(`client_id.eq.${selectedClientId},client_id.is.null`);
     }
 
     const { data } = await query;
@@ -316,7 +329,22 @@ function CalendarView() {
                 {/* Days of month */}
                 {daysInMonth.map((day) => {
                   const dayPosts = getPostsForDay(day);
-                  const specialDate = getSpecialDateForDay(day);
+                  const uniqueSpecialDates = Array.from(
+                    new Map(
+                      specialDates.map((sd) => [sd.title + sd.date, sd])
+                    ).values()
+                  );
+                  const specialDate = uniqueSpecialDates.find((sd) => {
+                    // ... (restante da lógica da função getSpecialDateForDay)
+                    const sdDate = new Date(sd.date + "T00:00:00");
+                    if (sd.recurrent) {
+                      return (
+                        sdDate.getUTCDate() === day.getUTCDate() &&
+                        sdDate.getUTCMonth() === day.getUTCMonth()
+                      );
+                    }
+                    return isSameDay(sdDate, day);
+                  });
                   const isToday = isSameDay(day, new Date());
 
                   return (

@@ -39,8 +39,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: data.error.message }, { status: 500 });
     }
 
-    // Aqui, você pode formatar os dados e salvá-los no seu banco de dados se desejar,
-    // ou apenas retorná-los para o frontend.
+    // Mapear e salvar os posts no banco de dados
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado." },
+        { status: 401 }
+      );
+    }
+
+    // Mapear e salvar os posts no banco de dados
+    const postsToInsert = data.data.map((post: any) => ({
+      client_id: clientId,
+      caption: post.caption || "",
+      scheduled_date: post.timestamp,
+      status: "published", // Status para posts já publicados
+      post_type: post.media_type.toLowerCase().includes("carousel")
+        ? "carousel"
+        : post.media_type.toLowerCase().includes("video")
+        ? "reel"
+        : "photo",
+      platforms: ["instagram"],
+      media_urls: post.children
+        ? post.children.data.map((child: any) => child.media_url)
+        : [post.media_url],
+      created_by: user.id, // Assumindo que o admin que importa é o criador
+      meta_post_id: post.id,
+    }));
+
+    if (postsToInsert.length > 0) {
+      await supabase
+        .from("posts")
+        .upsert(postsToInsert, { onConflict: "meta_post_id" });
+    }
+
+    // Atualizar o timestamp de última importação
+    await supabase
+      .from("clients")
+      .update({ last_import_timestamp: new Date().toISOString() })
+      .eq("id", clientId);
+
     return NextResponse.json(data.data);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

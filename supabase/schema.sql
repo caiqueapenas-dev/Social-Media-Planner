@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS public.clients (
   is_active BOOLEAN DEFAULT true,
   avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_import_timestamp TIMESTAMPTZ
 );
 
 -- Posts table
@@ -65,7 +66,7 @@ CREATE TABLE IF NOT EXISTS public.hashtag_groups (
 -- Special dates table
 CREATE TABLE IF NOT EXISTS public.special_dates (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE NOT NULL,
+  client_id UUID REFERENCES public.clients(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   date DATE NOT NULL,
   description TEXT,
