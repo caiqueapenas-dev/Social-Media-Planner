@@ -22,26 +22,33 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Para requisições de navegação (páginas HTML), sempre tente a rede primeiro.
-  if (event.request.mode === "navigate") {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match("/")) // Se falhar, mostra a página principal do cache
-    );
-    return;
+  const url = new URL(event.request.url);
+
+  // Ignora completamente as requisições de API (Supabase e internas) do cache.
+  // Elas sempre devem ir para a rede.
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.hostname.endsWith("supabase.co")
+  ) {
+    return; // Deixa o navegador lidar com a requisição, sem interceptar.
   }
 
-  // Para outros recursos (CSS, JS, imagens), use a estratégia "cache first"
+  // Estratégia "Network First, then Cache" para todos os outros recursos.
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return (
-        response ||
-        fetch(event.request).then((fetchResponse) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, fetchResponse.clone());
-            return fetchResponse;
-          });
+    caches.open(CACHE_NAME).then((cache) => {
+      return fetch(event.request)
+        .then((response) => {
+          // Se a resposta da rede for bem-sucedida,
+          // atualizamos o cache com a nova versão e a retornamos.
+          if (response.status === 200) {
+            cache.put(event.request, response.clone());
+          }
+          return response;
         })
-      );
+        .catch(() => {
+          // Se a rede falhar, tentamos servir a partir do cache.
+          return cache.match(event.request);
+        });
     })
   );
 });

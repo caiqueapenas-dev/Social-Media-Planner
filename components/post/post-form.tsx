@@ -146,7 +146,9 @@ export function PostForm({
     }
   }, [formData.post_type]);
 
-  // Sincroniza o estado do formulário com os dados iniciais ao editar um post
+  // Efeito para popular o formulário com dados iniciais ou resetar para novo post.
+  // A dependência no `initialData?.id` garante que o formulário só seja
+  // repopulado quando o post a ser editado realmente mudar.
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -160,40 +162,21 @@ export function PostForm({
         status: initialData.status || "draft",
       });
       setMediaPreviews(initialData.media_urls || []);
-      setMediaFiles([]);
-    }
-  }, [initialData]);
-
-  // Recarrega o formulário quando um post diferente é selecionado para edição
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        client_id: initialData.client_id || "",
-        caption: initialData.caption || "",
-        scheduled_date:
-          initialData.scheduled_date ||
-          format(new Date(), "yyyy-MM-dd'T'10:00"),
-        post_type: initialData.post_type || "photo",
-        platforms: initialData.platforms || ["instagram", "facebook"],
-        status: initialData.status || "draft",
-      });
-      setMediaPreviews(initialData.media_urls || []);
-      setMediaFiles([]); // Limpa arquivos novos ao carregar um post existente
+      setMediaFiles([]); // Limpa sempre os arquivos em memória ao trocar de post
     } else {
-      // Reseta para um novo post se não houver dados iniciais
-      setFormData((prev) => ({
-        ...prev,
+      // Reseta o formulário para um novo post
+      setFormData({
         client_id: "",
         caption: "",
-        post_type: "photo",
-        status: "draft",
         scheduled_date: format(new Date(), "yyyy-MM-dd'T'10:00"),
+        post_type: "photo",
         platforms: ["instagram", "facebook"],
-      }));
+        status: "draft",
+      });
       setMediaPreviews([]);
       setMediaFiles([]);
     }
-  }, [initialData]);
+  }, [initialData?.id]); // A mágica está aqui: só executa quando o ID muda
 
   // Load draft on mount
   useEffect(() => {
@@ -214,7 +197,7 @@ export function PostForm({
           )
         ) {
           setFormData(draft.form_data.formData);
-          setMediaPreviews(draft.form_data.mediaPreviews);
+          setMediaPreviews(draft.data.mediaPreviews);
           setDraftId(draft.id);
         } else {
           // User chose not to restore, so delete the draft
@@ -237,7 +220,7 @@ export function PostForm({
       const draftData = {
         user_id: user.id,
         post_id: initialData?.id || null,
-        form_data: { formData, mediaPreviews },
+        data: { formData, mediaPreviews },
       };
 
       const { data, error } = await supabase
