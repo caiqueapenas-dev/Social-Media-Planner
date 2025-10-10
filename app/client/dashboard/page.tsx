@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PostViewModal } from "@/components/post/post-view-modal";
-import { Calendar, CheckCircle, Clock, Eye } from "lucide-react";
+import { Calendar, CheckCircle, Clock, Eye, History } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { Post } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -20,10 +20,14 @@ export default function ClientDashboard() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [visiblePosts, setVisiblePosts] = useState({ pending: 3, approved: 3 });
+  const [visiblePosts, setVisiblePosts] = useState({
+    pending: 3,
+    approved: 3,
+    published: 4,
+  });
 
-  const showMore = (section: keyof typeof visiblePosts) => {
-    setVisiblePosts((prev) => ({ ...prev, [section]: prev[section] + 3 }));
+  const showMore = (section: keyof typeof visiblePosts, amount = 3) => {
+    setVisiblePosts((prev) => ({ ...prev, [section]: prev[section] + amount }));
   };
 
   useEffect(() => {
@@ -82,6 +86,14 @@ export default function ClientDashboard() {
   const approvedPosts = posts.filter(
     (p) => p.status === "approved" && new Date(p.scheduled_date) > new Date()
   );
+
+  const publishedPosts = posts
+    .filter((p) => p.status === "published")
+    .sort(
+      (a, b) =>
+        new Date(b.scheduled_date).getTime() -
+        new Date(a.scheduled_date).getTime()
+    );
 
   const handleApprove = async (post: Post) => {
     const { error } = await supabase
@@ -362,6 +374,65 @@ export default function ClientDashboard() {
             {approvedPosts.length > visiblePosts.approved && (
               <div className="text-center mt-4">
                 <Button variant="outline" onClick={() => showMore("approved")}>
+                  Ver mais
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Published Posts */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Últimos Posts Publicados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {publishedPosts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhum post publicado ainda.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {publishedPosts.slice(0, visiblePosts.published).map((post) => (
+                  <div
+                    key={post.id}
+                    className="flex items-start gap-4 p-4 rounded-lg border"
+                  >
+                    {post.media_urls && post.media_urls.length > 0 && (
+                      <img
+                        src={post.media_urls[0]}
+                        alt="Post preview"
+                        className="w-16 h-16 rounded object-cover"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {getStatusBadge(post.status)}
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {post.caption}
+                      </p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDateTime(post.scheduled_date)}
+                        </span>
+                        <span className="capitalize">{post.post_type}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {publishedPosts.length > visiblePosts.published && (
+              <div className="text-center mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => showMore("published", 4)}
+                >
                   Ver mais
                 </Button>
               </div>
