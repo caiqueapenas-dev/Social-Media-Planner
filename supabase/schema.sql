@@ -314,3 +314,85 @@ CREATE TRIGGER on_post_created_send_notification
 
 -- Remove a função antiga que não será mais usada
 DROP FUNCTION IF EXISTS public.handle_post_status_change();
+
+-- =================================================================
+-- FUNÇÕES SEGURAS PARA GERENCIAMENTO DE CLIENTES
+-- =================================================================
+
+-- Função para CRIAR um novo cliente (usuário + perfil)
+CREATE OR REPLACE FUNCTION public.create_client_user(
+  client_email TEXT,
+  client_password TEXT,
+  client_name TEXT,
+  client_brand_color TEXT,
+  client_avatar_url TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  new_user_id UUID;
+  new_client JSON;
+BEGIN
+  -- Cria o usuário no sistema de autenticação do Supabase
+  new_user_id := auth.admin_create_user(client_email, client_password, '{"full_name": "' || client_name || '", "avatar_url": "' || client_avatar_url || '"}');
+
+  -- Insere o registro na tabela public.users
+  INSERT INTO public.users (id, email, role, full_name, avatar_url)
+  VALUES (new_user_id, client_email, 'client', client_name, client_avatar_url);
+
+  -- Insere o registro na tabela public.clients e retorna o resultado
+  INSERT INTO public.clients (user_id, name, email, brand_color, avatar_url)
+  VALUES (new_user_id, client_name, client_email, client_brand_color, client_avatar_url)
+  RETURNING json_build_object('id', id, 'name', name, 'email', email, 'user_id', user_id, 'brand_color', brand_color, 'avatar_url', avatar_url, 'is_active', is_active) INTO new_client;
+  
+  RETURN new_client;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Em caso de erro em qualquer etapa, deleta o usuário da autenticação para evitar órfãos
+    IF new_user_id IS NOT NULL THEN
+      PERFORM auth.admin_delete_user(new_user_id);
+    END IF;
+    RAISE;
+END;
+$$;
+
+
+-- Função para ATUALIZAR um cliente existente
+CREATE OR REPLACE FUNCTION public.update_client_user(
+  p_user_id UUID,
+  p_email TEXT,
+  p_password TEXT,
+  p_name TEXT,
+  p_avatar_url TEXT,
+  p_brand_color TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  json_meta JSONB;
+BEGIN
+  -- Atualiza o perfil na tabela public.users
+  UPDATE public.users
+  SET full_name = p_name, email = p_email, avatar_url = p_avatar_url
+  WHERE id = p_user_id;
+
+  -- Atualiza o perfil na tabela public.clients
+  UPDATE public.clients
+  SET name = p_name, email = p_email, brand_color = p_brand_color, avatar_url = p_avatar_url
+  WHERE user_id = p_user_id;
+
+  -- Prepara os metadados para a atualização de autenticação
+  json_meta := jsonb_build_object('full_name', p_name, 'avatar_url', p_avatar_url);
+
+  -- Atualiza o usuário no sistema de autenticação do Supabase
+  IF p_password IS NOT NULL AND p_password <> '' THEN
+    PERFORM auth.admin_update_user_by_id(p_user_id, jsonb_build_object('email', p_email, 'password', p_password, 'user_metadata', json_meta));
+  ELSE
+    PERFORM auth.admin_update_user_by_id(p_user_id, jsonb_build_object('email', p_email, 'user_metadata', json_meta));
+  END IF;
+END;
+$$;
