@@ -208,22 +208,24 @@ export default function ClientCalendarPage() {
 
         {/* Calendar */}
         <Tabs defaultValue="monthly" onValueChange={setActiveView}>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={previous}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={next}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" onClick={goToToday}>
-                Hoje
-              </Button>
-              <h2 className="text-xl font-semibold capitalize ml-4">
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={previous}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={next}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" onClick={goToToday}>
+                  Hoje
+                </Button>
+              </div>
+              <h2 className="text-xl font-semibold capitalize">
                 {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
               </h2>
             </div>
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="monthly">Mensal</TabsTrigger>
               <TabsTrigger value="weekly">Semanal</TabsTrigger>
               <TabsTrigger value="list">Lista</TabsTrigger>
@@ -240,7 +242,7 @@ export default function ClientCalendarPage() {
                       key={day}
                       className="text-center text-sm font-medium text-muted-foreground py-2"
                     >
-                      {day}
+                      {day.substring(0, 3)}
                     </div>
                   )
                 )}
@@ -292,8 +294,8 @@ export default function ClientCalendarPage() {
                     className="border rounded-lg p-2 space-y-2 min-h-[150px] flex flex-col"
                   >
                     <div className="text-center font-medium text-sm border-b pb-2">
-                      <p className="text-xs text-muted-foreground">
-                        {format(day, "EEE", { locale: ptBR })}
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {format(day, "EEEE", { locale: ptBR }).substring(0, 3)}
                       </p>
                       <p>{format(day, "d")}</p>
                     </div>

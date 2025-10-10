@@ -71,12 +71,14 @@ export function PostCard({ post, onClick }: PostCardProps) {
             selected={post.platforms.includes("instagram")}
             onToggle={() => {}}
             readOnly
+            size="sm"
           />
           <PlatformButton
             platform="facebook"
             selected={post.platforms.includes("facebook")}
             onToggle={() => {}}
             readOnly
+            size="sm"
           />
         </div>
       </div>
