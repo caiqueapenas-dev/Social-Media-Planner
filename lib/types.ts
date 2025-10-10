@@ -93,6 +93,11 @@ export interface SpecialDate {
   description?: string;
   recurrent?: boolean;
   created_at: string;
+  client?: {
+    id: string;
+    name: string;
+    brand_color: string;
+  };
 }
 
 export interface Insight {

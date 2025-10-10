@@ -124,9 +124,23 @@ export function AdminCalendarDay({
               <div className="flex items-start gap-3">
                 <Star className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-blue-800 dark:text-blue-200">
-                    {specialDate.title}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-blue-800 dark:text-blue-200">
+                      {specialDate.title}
+                    </h3>
+                    {specialDate.client ? (
+                      <span
+                        className="text-xs px-2 py-1 rounded-full text-white"
+                        style={{
+                          backgroundColor: specialDate.client.brand_color,
+                        }}
+                      >
+                        {specialDate.client.name}
+                      </span>
+                    ) : (
+                      <Badge variant="secondary">Público</Badge>
+                    )}
+                  </div>
                   {specialDate.description && (
                     <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                       {specialDate.description}

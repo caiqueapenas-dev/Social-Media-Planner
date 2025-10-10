@@ -250,16 +250,19 @@ export default function SpecialDatesPage() {
                               <RefreshCw className="h-3 w-3" /> Anual
                             </Badge>
                           )}
-                          {!selectedClientId && date.client && (
-                            <span
-                              className="text-xs px-2 py-1 rounded-full text-white"
-                              style={{
-                                backgroundColor: date.client.brand_color,
-                              }}
-                            >
-                              {date.client.name}
-                            </span>
-                          )}
+                          {!selectedClientId &&
+                            (date.client ? (
+                              <span
+                                className="text-xs px-2 py-1 rounded-full text-white"
+                                style={{
+                                  backgroundColor: date.client.brand_color,
+                                }}
+                              >
+                                {date.client.name}
+                              </span>
+                            ) : (
+                              <Badge variant="secondary">Público</Badge>
+                            ))}
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">
                           {format(
