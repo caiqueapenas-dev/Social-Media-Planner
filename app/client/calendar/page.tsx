@@ -17,6 +17,74 @@ import {
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { Post, SpecialDate } from "@/lib/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { addWeeks, endOfWeek, startOfWeek, subWeeks } from "date-fns";
+import { PostCard } from "@/components/post/post-card";
+
+function ClientCalendarList({
+  posts,
+  specialDates,
+  onPostClick,
+}: {
+  posts: Post[];
+  specialDates: SpecialDate[];
+  onPostClick: (post: Post) => void;
+}) {
+  const combinedItems = [
+    ...posts.map((post) => ({
+      ...post,
+      type: "post",
+      date: post.scheduled_date,
+    })),
+    ...specialDates.map((sd) => ({
+      ...sd,
+      type: "special-date",
+      date: sd.date,
+    })),
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return (
+    <div className="space-y-3">
+      {combinedItems.length > 0 ? (
+        combinedItems.map((item: any) => (
+          <div key={`${item.type}-${item.id}`}>
+            {item.type === "post" ? (
+              <PostCard post={item as Post} onClick={onPostClick} />
+            ) : (
+              <SpecialDateCard
+                specialDate={item as SpecialDate & { client: any }}
+              />
+            )}
+          </div>
+        ))
+      ) : (
+        <p className="text-center text-muted-foreground py-8">
+          Nenhum item encontrado.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SpecialDateCard({ specialDate }: { specialDate: SpecialDate }) {
+  return (
+    <div className="flex items-start gap-4 p-4 rounded-lg border bg-blue-50 dark:bg-blue-900/20">
+      <Star className="h-5 w-5 text-blue-500 mt-1 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+          {specialDate.title}
+        </h3>
+        <p className="text-sm text-blue-800 dark:text-blue-200">
+          {format(
+            new Date(specialDate.date + "T00:00:00"),
+            "dd 'de' MMMM 'de' yyyy",
+            { locale: ptBR }
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function ClientCalendarPage() {
   const supabase = createClient();
@@ -24,6 +92,7 @@ export default function ClientCalendarPage() {
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [clientId, setClientId] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [activeView, setActiveView] = useState("monthly");
 
   useEffect(() => {
     loadClientData();
@@ -102,16 +171,24 @@ export default function ClientCalendarPage() {
     });
   };
 
-  const previousMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
-    );
+  const previous = () => {
+    if (activeView === "monthly") {
+      setCurrentMonth(
+        new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+      );
+    } else {
+      setCurrentMonth(subWeeks(currentMonth, 1));
+    }
   };
 
-  const nextMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
-    );
+  const next = () => {
+    if (activeView === "monthly") {
+      setCurrentMonth(
+        new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+      );
+    } else {
+      setCurrentMonth(addWeeks(currentMonth, 1));
+    }
   };
 
   const goToToday = () => {
@@ -130,70 +207,121 @@ export default function ClientCalendarPage() {
         </div>
 
         {/* Calendar */}
-        <Card className="p-6">
-          {/* Month navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <Button variant="outline" size="icon" onClick={previousMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
+        <Tabs defaultValue="monthly" onValueChange={setActiveView}>
+          <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold capitalize">
-                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-              </h2>
+              <Button variant="outline" size="icon" onClick={previous}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={next}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
               <Button variant="outline" onClick={goToToday}>
                 Hoje
               </Button>
+              <h2 className="text-xl font-semibold capitalize ml-4">
+                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+              </h2>
             </div>
-            <Button variant="outline" size="icon" onClick={nextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <TabsList>
+              <TabsTrigger value="monthly">Mensal</TabsTrigger>
+              <TabsTrigger value="weekly">Semanal</TabsTrigger>
+              <TabsTrigger value="list">Lista</TabsTrigger>
+            </TabsList>
           </div>
 
-          {/* Weekday headers */}
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
-              <div
-                key={day}
-                className="text-center text-sm font-medium text-muted-foreground py-2"
-              >
-                {day}
+          <TabsContent value="monthly">
+            <Card className="p-6">
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 gap-2 mb-2">
+                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(
+                  (day) => (
+                    <div
+                      key={day}
+                      className="text-center text-sm font-medium text-muted-foreground py-2"
+                    >
+                      {day}
+                    </div>
+                  )
+                )}
               </div>
-            ))}
-          </div>
 
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-2">
-            {/* Empty cells */}
-            {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-              <div key={`empty-${i}`} className="aspect-square" />
-            ))}
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-2">
+                {/* Empty cells */}
+                {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+                  <div key={`empty-${i}`} className="aspect-square" />
+                ))}
 
-            {/* Days */}
-            {daysInMonth.map((day) => {
-              const dayPosts = getPostsForDay(day);
-              const specialDate = getSpecialDateForDay(day);
-              const isToday = isSameDay(day, new Date());
+                {/* Days */}
+                {daysInMonth.map((day) => {
+                  const dayPosts = getPostsForDay(day);
+                  const specialDate = getSpecialDateForDay(day);
+                  const isToday = isSameDay(day, new Date());
 
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={`relative aspect-square border rounded-lg p-2 transition-colors ${
-                    isToday ? "border-primary border-2 bg-primary/5" : ""
-                  } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
-                >
-                  <div className="text-sm font-medium mb-1">
-                    {format(day, "d")}
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={`relative aspect-square border rounded-lg p-2 transition-colors ${
+                        isToday ? "border-primary border-2 bg-primary/5" : ""
+                      } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
+                    >
+                      <div className="text-sm font-medium mb-1">
+                        {format(day, "d")}
+                      </div>
+                      <ClientCalendarDay
+                        posts={dayPosts}
+                        specialDate={specialDate}
+                        onPostUpdate={loadPosts}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          </TabsContent>
+          <TabsContent value="weekly">
+            <Card className="p-4">
+              <div className="grid grid-cols-7 gap-2">
+                {eachDayOfInterval({
+                  start: startOfWeek(currentMonth, { locale: ptBR }),
+                  end: endOfWeek(currentMonth, { locale: ptBR }),
+                }).map((day) => (
+                  <div
+                    key={day.toISOString()}
+                    className="border rounded-lg p-2 space-y-2 min-h-[150px] flex flex-col"
+                  >
+                    <div className="text-center font-medium text-sm border-b pb-2">
+                      <p className="text-xs text-muted-foreground">
+                        {format(day, "EEE", { locale: ptBR })}
+                      </p>
+                      <p>{format(day, "d")}</p>
+                    </div>
+                    <div className="flex-1">
+                      <ClientCalendarDay
+                        posts={getPostsForDay(day)}
+                        specialDate={getSpecialDateForDay(day)}
+                        onPostUpdate={loadPosts}
+                      />
+                    </div>
                   </div>
-                  <ClientCalendarDay
-                    posts={dayPosts}
-                    specialDate={specialDate}
-                    onPostUpdate={loadPosts}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+                ))}
+              </div>
+            </Card>
+          </TabsContent>
+          <TabsContent value="list">
+            <Card className="p-4">
+              <ClientCalendarList
+                posts={posts}
+                specialDates={specialDates}
+                onPostClick={(post) => {
+                  // Você precisará implementar a lógica para abrir o modal de visualização do post
+                  console.log("Post clicado:", post);
+                }}
+              />
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Legend */}
         <div className="flex flex-wrap gap-4 text-sm">
