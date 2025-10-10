@@ -199,10 +199,22 @@ export async function POST(request: Request) {
       const scheduledDate = new Date(postData.scheduled_date);
       const now = new Date();
 
-      // A API da Meta exige um agendamento com pelo menos 10 minutos de antecedência e no máximo 6 meses.
-      if (scheduledDate > new Date(now.getTime() + 10 * 60 * 1000)) {
+      // Se a data agendada for no futuro, tentamos agendar.
+      if (scheduledDate > now) {
+        const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
+        if (scheduledDate < tenMinutesFromNow) {
+          throw new Error(
+            "A data de agendamento está muito próxima (menos de 10 min). O post foi Aprovado, mas o agendamento falhou. Peça para o administrador agendar manualmente."
+          );
+        }
         const publishTime = Math.floor(scheduledDate.getTime() / 1000);
         publishUrl += `&scheduled_publish_time=${publishTime}`;
+      }
+      // Se a data agendada já passou, a API publicaria imediatamente, o que não é o desejado no fluxo de aprovação.
+      else {
+        throw new Error(
+          "A data de agendamento já passou. O post foi Aprovado, mas precisa ser reagendado e publicado manualmente pelo administrador."
+        );
       }
     }
 
