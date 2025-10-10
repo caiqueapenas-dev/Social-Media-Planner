@@ -194,28 +194,27 @@ export async function POST(request: Request) {
     // Publica ou agenda o contêiner
     let publishUrl = `${BASE_URL}/${instagram_business_id}/media_publish?creation_id=${creationId}&access_token=${meta_page_access_token}`;
 
-    // A API da Meta não suporta agendamento de stories. Eles são publicados imediatamente.
-    if (postData.post_type !== "story") {
-      const scheduledDate = new Date(postData.scheduled_date);
-      const now = new Date();
+    const scheduledDate = new Date(postData.scheduled_date);
+    const now = new Date();
 
-      // Se a data agendada for no futuro, tentamos agendar.
-      if (scheduledDate > now) {
-        const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
-        if (scheduledDate < tenMinutesFromNow) {
-          throw new Error(
-            "A data de agendamento está muito próxima (menos de 10 min). O post foi Aprovado, mas o agendamento falhou. Peça para o administrador agendar manualmente."
-          );
-        }
+    if (postData.post_type !== "story" && scheduledDate > now) {
+      const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
+      const seventyFiveDaysFromNow = new Date(
+        now.getTime() + 75 * 24 * 60 * 60 * 1000
+      );
+
+      if (
+        scheduledDate >= tenMinutesFromNow &&
+        scheduledDate <= seventyFiveDaysFromNow
+      ) {
         const publishTime = Math.floor(scheduledDate.getTime() / 1000);
         publishUrl += `&scheduled_publish_time=${publishTime}`;
-      }
-      // Se a data agendada já passou, a API publicaria imediatamente, o que não é o desejado no fluxo de aprovação.
-      else {
+      } else if (scheduledDate > seventyFiveDaysFromNow) {
         throw new Error(
-          "A data de agendamento já passou. O post foi Aprovado, mas precisa ser reagendado e publicado manualmente pelo administrador."
+          "A data de agendamento não pode ser superior a 75 dias."
         );
       }
+      // Se for menos de 10 minutos no futuro, a API publicará imediatamente, o que é o comportamento esperado para o botão "Publicar Agora".
     }
 
     const publishResponse = await fetch(publishUrl, { method: "POST" });

@@ -112,7 +112,12 @@ export default function AdminDashboardImproved() {
 
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
-    setIsModalOpen(true);
+    // Se o post foi aprovado com atraso ou precisa de refação, abre o formulário de edição direto
+    if (post.status === "late_approved" || post.status === "refactor") {
+      setIsPostFormModalOpen(true);
+    } else {
+      setIsModalOpen(true);
+    }
   };
 
   const handleClosePostFormModal = () => {
@@ -504,12 +509,6 @@ export default function AdminDashboardImproved() {
           }}
           onCancel={handleClosePostFormModal}
           onDirtyChange={setIsFormDirty}
-          onDelete={() => {
-            setIsFormDirty(false);
-            setIsPostFormModalOpen(false);
-            setSelectedPost(null);
-            loadPosts();
-          }}
         />
       </Modal>
     </AdminLayout>

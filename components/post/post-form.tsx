@@ -22,6 +22,8 @@ import {
   Send,
   X,
   Loader2,
+  CheckCircle,
+  SendHorizonal,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { uploadToCloudinary } from "@/lib/utils";
@@ -49,7 +51,6 @@ interface PostFormProps {
   onSuccess: () => void;
   onCancel: () => void;
   initialData?: any;
-  onDelete?: (id: string) => void;
   onDirtyChange?: (isDirty: boolean) => void;
 }
 
@@ -57,7 +58,6 @@ export function PostForm({
   onSuccess,
   onCancel,
   initialData,
-  onDelete,
   onDirtyChange,
 }: PostFormProps) {
   const supabase = createClient();
@@ -422,15 +422,19 @@ export function PostForm({
         created_by: user.id,
       };
 
+      let savedPost = null;
+
       if (initialData?.id) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("posts")
           .update(postData)
-          .eq("id", initialData.id);
+          .eq("id", initialData.id)
+          .select()
+          .single();
 
         if (error) throw error;
+        savedPost = data;
 
-        // Log caption change to history
         if (initialData.caption !== postData.caption) {
           await supabase.from("edit_history").insert({
             post_id: initialData.id,
@@ -440,23 +444,36 @@ export function PostForm({
             },
           });
         }
-
         toast.success("Post atualizado com sucesso!");
       } else {
-        const { data: newPost, error } = await supabase
+        const { data, error } = await supabase
           .from("posts")
           .insert(postData)
           .select()
           .single();
 
         if (error) throw error;
+        savedPost = data;
 
-        if (formData.status === "pending" && formData.client_id && newPost) {
+        if (formData.status === "pending" && formData.client_id && savedPost) {
           const { notifyNewPost } = await import("@/lib/notifications");
-          await notifyNewPost(newPost.id, formData.client_id);
+          await notifyNewPost(savedPost.id, formData.client_id);
         }
-
         toast.success("Post criado com sucesso!");
+      }
+
+      // Se o post foi salvo para ser publicado/agendado
+      if (
+        (formData.status === "approved" ||
+          formData.status === "late_approved") &&
+        savedPost
+      ) {
+        const publishedSuccessfully = await handlePublishToMeta(savedPost);
+
+        if (!publishedSuccessfully) {
+          setIsSubmitting(false);
+          return; // Interrompe para manter o modal aberto
+        }
       }
 
       await clearDraft();
@@ -469,51 +486,42 @@ export function PostForm({
     }
   };
 
-  const handlePublishToMeta = async () => {
-    if (!formData.client_id) {
-      toast.error("Selecione um cliente primeiro.");
-      return;
+  // Retorna `true` em sucesso, `false` em falha
+  const handlePublishToMeta = async (postToPublish: any): Promise<boolean> => {
+    if (!postToPublish?.client_id) {
+      toast.error("Cliente não encontrado para publicação.");
+      return false;
     }
-    if (mediaPreviews.length === 0) {
-      toast.error("Adicione pelo menos uma mídia para publicar.");
-      return;
-    }
-
     setIsPublishing(true);
     try {
-      const uploadedUrls: string[] = [];
-      for (const file of mediaFiles) {
-        const url = await uploadToCloudinary(file);
-        uploadedUrls.push(url);
-      }
-
-      const finalPostData = {
-        ...formData,
-        media_urls: [
-          ...mediaPreviews.filter((url) => url.startsWith("http")),
-          ...uploadedUrls,
-        ],
-      };
-
       const response = await fetch("/api/meta/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientId: formData.client_id,
-          postData: finalPostData,
+          clientId: postToPublish.client_id,
+          postData: postToPublish,
         }),
       });
 
       const result = await response.json();
-      if (response.ok) {
-        toast.success("Post agendado/publicado na Meta com sucesso!");
-        await clearDraft();
-        onSuccess();
-      } else {
+
+      if (!response.ok) {
         toast.error(result.error || "Falha ao publicar na Meta.");
+        return false;
       }
+
+      toast.success("Post agendado/publicado na Meta com sucesso!");
+      const scheduledDate = new Date(postToPublish.scheduled_date);
+      if (scheduledDate <= new Date()) {
+        await supabase
+          .from("posts")
+          .update({ status: "published" })
+          .eq("id", postToPublish.id);
+      }
+      return true;
     } catch (err: any) {
       toast.error(err.message || "Ocorreu um erro de rede.");
+      return false;
     } finally {
       setIsPublishing(false);
     }
@@ -826,17 +834,39 @@ export function PostForm({
           {isSubmitting ? "Enviando..." : "Enviar para Aprovação"}
         </Button>
         <Button
-          type="button"
-          onClick={handlePublishToMeta}
+          type="submit"
+          onClick={() => setFormData({ ...formData, status: "approved" })}
           disabled={isLoading}
-          className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+          className="flex-1 bg-gradient-to-r from-green-500 to-teal-500 text-white"
+        >
+          {isSubmitting && formData.status !== "draft" && formData.status !== "pending" ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <CheckCircle className="h-4 w-4 mr-2" />
+          )}
+          Agendar/Reagendar
+        </Button>
+        <Button
+          type="submit"
+          onClick={() => {
+            const now = new Date();
+            // Adiciona 10 minutos para dar margem para o processo da API
+            now.setMinutes(now.getMinutes() + 10);
+            setFormData({
+              ...formData,
+              status: "approved",
+              scheduled_date: now.toISOString().slice(0, 16),
+            });
+          }}
+          disabled={isLoading}
+          className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
         >
           {isPublishing ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
-            <Instagram className="h-4 w-4 mr-2" />
+            <SendHorizonal className="h-4 w-4 mr-2" />
           )}
-          {isPublishing ? "Publicando..." : "Publicar/Agendar na Meta"}
+          {isPublishing ? "Publicando..." : "Publicar Agora"}
         </Button>
       </div>
     </form>
