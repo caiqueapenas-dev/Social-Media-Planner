@@ -79,21 +79,7 @@ export default function ClientsPage() {
         return;
       }
 
-      // Also update the local client table data that doesn't require admin rights
-      const { error: clientError } = await supabase
-        .from("clients")
-        .update({
-          name: clientData.name,
-          email: clientData.email,
-          brand_color: clientData.brand_color,
-          avatar_url: clientData.avatar_url,
-        })
-        .eq("id", editingClient.id);
-
-      if (clientError) {
-        toast.error("Erro ao atualizar dados do cliente.");
-        return;
-      }
+      // A atualização da tabela 'clients' agora é feita na API route
 
       updateClient(editingClient.id, { ...editingClient, ...clientData });
       toast.success("Cliente atualizado com sucesso!");

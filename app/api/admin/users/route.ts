@@ -1,11 +1,16 @@
 // app/api/admin/users/route.ts
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 // Função para criar um cliente (POST)
 export async function POST(request: Request) {
   const supabase = await createClient();
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   const {
     data: { user },
@@ -101,8 +106,10 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   }
 
-  const { userId, email, password, name, avatar_url } = await request.json();
+  const { userId, email, password, name, avatar_url, brand_color } =
+    await request.json();
 
+  // 1. Atualizar dados de autenticação (auth.users)
   const userUpdateData: any = {
     email,
     user_metadata: { full_name: name, avatar_url },
@@ -111,7 +118,13 @@ export async function PUT(request: Request) {
     userUpdateData.password = password;
   }
 
-  const { error: authError } = await supabase.auth.admin.updateUserById(
+  // Crie um cliente de administração para a atualização
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
     userId,
     userUpdateData
   );
@@ -121,6 +134,38 @@ export async function PUT(request: Request) {
       { error: `Erro ao atualizar credenciais: ${authError.message}` },
       { status: 400 }
     );
+  }
+
+  // 2. Atualizar dados na tabela pública (public.clients e public.users)
+  const { error: clientError } = await supabase
+    .from("clients")
+    .update({
+      name,
+      email,
+      brand_color,
+      avatar_url,
+    })
+    .eq("user_id", userId);
+
+  if (clientError) {
+    return NextResponse.json(
+      { error: `Erro ao atualizar dados do cliente: ${clientError.message}` },
+      { status: 500 }
+    );
+  }
+
+  const { error: userProfileError } = await supabase
+    .from("users")
+    .update({
+      full_name: name,
+      email,
+      avatar_url,
+    })
+    .eq("id", userId);
+
+  if (userProfileError) {
+    // A falha aqui não é crítica, mas é bom registrar
+    console.error("Erro ao atualizar perfil de usuário:", userProfileError);
   }
 
   return NextResponse.json({ success: true });
