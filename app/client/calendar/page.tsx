@@ -44,7 +44,7 @@ function ClientCalendarList({
       type: "special-date",
       date: sd.date,
     })),
-  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // CORREÇÃO: Ordem decrescente (mais recente primeiro)
 
   return (
     <div className="space-y-3">
@@ -95,11 +95,16 @@ export default function ClientCalendarPage() {
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [clientId, setClientId] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [isLoadingDates, setIsLoadingDates] = useState(false); // Adiciona estado de loading para datas
+  const [isLoadingDates, setIsLoadingDates] = useState(false);
   const [activeView, setActiveView] = useState("monthly");
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { user } = useAuthStore();
+
+  // Variáveis para rastrear o toque/arrasto
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+  const minSwipeDistance = 50; // Distância mínima para considerar um swipe
 
   const refreshPosts = useCallback(async () => {
     if (!clientId) return;
@@ -119,7 +124,7 @@ export default function ClientCalendarPage() {
     // CORREÇÃO: Busca datas específicas do cliente OU datas públicas (client_id is null)
     const { data, error } = await supabase
       .from("special_dates")
-      .select(`*, client:clients(id, name, brand_color)`) // Inclui cliente para exibição
+      .select(`*, client:clients(id, name, brand_color)`)
       .or(`client_id.eq.${clientId},client_id.is.null`);
 
     if (error) {
@@ -157,7 +162,7 @@ export default function ClientCalendarPage() {
     toast.success("Post aprovado!");
     setIsModalOpen(false);
     setSelectedPost(null);
-    refreshPosts(); // Chama a função corrigida sem argumentos
+    refreshPosts();
   };
 
   const handleRequestAlteration = async (post: Post, alteration: string) => {
@@ -193,7 +198,7 @@ export default function ClientCalendarPage() {
     toast.success("Alteração solicitada com sucesso!");
     setIsModalOpen(false);
     setSelectedPost(null);
-    refreshPosts(); // Chama a função corrigida sem argumentos
+    refreshPosts();
   };
 
   const loadClientData = async () => {
@@ -220,11 +225,35 @@ export default function ClientCalendarPage() {
 
   useEffect(() => {
     if (clientId) {
-      // Chama as novas funções estáveis
       refreshPosts();
       refreshSpecialDates();
     }
   }, [clientId, currentMonth, refreshPosts, refreshSpecialDates]);
+
+  // --- Lógica de Swipe ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(0); // Resetar touchEnd ao iniciar
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      next(); // Swipe para a esquerda = Próximo (mês/semana)
+    } else if (isRightSwipe) {
+      previous(); // Swipe para a direita = Anterior (mês/semana)
+    }
+  };
+  // --- Fim Lógica de Swipe ---
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -287,22 +316,24 @@ export default function ClientCalendarPage() {
         {/* Calendar */}
         <Tabs defaultValue="monthly" onValueChange={setActiveView}>
           <div className="flex flex-col gap-4 mb-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={previous}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={next}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" onClick={goToToday}>
-                  Hoje
-                </Button>
+            {activeView !== "list" && ( // CORREÇÃO: Esconde navegação e título na vista de lista
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={previous}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={next}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" onClick={goToToday}>
+                    Hoje
+                  </Button>
+                </div>
+                <h2 className="text-xl font-semibold capitalize">
+                  {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                </h2>
               </div>
-              <h2 className="text-xl font-semibold capitalize">
-                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-              </h2>
-            </div>
+            )}
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="monthly">Mensal</TabsTrigger>
               <TabsTrigger value="weekly">Semanal</TabsTrigger>
@@ -311,7 +342,12 @@ export default function ClientCalendarPage() {
           </div>
 
           <TabsContent value="monthly">
-            <Card className="p-6">
+            <Card
+              className="p-6"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               {/* Weekday headers */}
               <div className="grid grid-cols-7 gap-2 mb-2">
                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(
@@ -361,7 +397,12 @@ export default function ClientCalendarPage() {
             </Card>
           </TabsContent>
           <TabsContent value="weekly">
-            <Card className="p-4">
+            <Card
+              className="p-4"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               <div className="grid grid-cols-7 gap-2">
                 {eachDayOfInterval({
                   start: startOfWeek(currentMonth, { locale: ptBR }),
@@ -407,7 +448,7 @@ export default function ClientCalendarPage() {
             onClose={() => {
               setIsModalOpen(false);
               setSelectedPost(null);
-              refreshPosts(); // Usando o nome correto da função
+              refreshPosts();
             }}
             onApprove={handleApprove}
             onRefactor={handleRequestAlteration}
