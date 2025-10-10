@@ -100,7 +100,15 @@ export async function POST(request: Request) {
       const url = `${BASE_URL}/${instagram_business_id}/media?image_url=${postData.media_urls[0]}&caption=${caption}&access_token=${meta_page_access_token}`;
       const response = await fetch(url, { method: "POST" });
       const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
+      if (data.error) {
+        // Verifica especificamente por erros de token inválido/expirado
+        if (data.error.code === 190) {
+          throw new Error(
+            "O token de acesso da Meta expirou ou é inválido. Por favor, renove os tokens nas configurações de integrações."
+          );
+        }
+        throw new Error(data.error.message);
+      }
       creationId = data.id;
     } else if (postData.post_type === "carousel") {
       if (!postData.media_urls || postData.media_urls.length < 2) {
@@ -112,10 +120,16 @@ export async function POST(request: Request) {
         const itemUrl = `${BASE_URL}/${instagram_business_id}/media?image_url=${mediaUrl}&is_carousel_item=true&access_token=${meta_page_access_token}`;
         const itemResponse = await fetch(itemUrl, { method: "POST" });
         const itemData = await itemResponse.json();
-        if (itemData.error)
+        if (itemData.error) {
+          if (itemData.error.code === 190) {
+            throw new Error(
+              "O token de acesso da Meta expirou ou é inválido. Por favor, renove os tokens nas configurações de integrações."
+            );
+          }
           throw new Error(
             `Erro ao criar item do carrossel: ${itemData.error.message}`
           );
+        }
         itemContainerIds.push(itemData.id);
       }
 
@@ -123,10 +137,16 @@ export async function POST(request: Request) {
       const carouselUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=CAROUSEL&children=${children}&caption=${caption}&access_token=${meta_page_access_token}`;
       const carouselResponse = await fetch(carouselUrl, { method: "POST" });
       const carouselData = await carouselResponse.json();
-      if (carouselData.error)
+      if (carouselData.error) {
+        if (carouselData.error.code === 190) {
+          throw new Error(
+            "O token de acesso da Meta expirou ou é inválido. Por favor, renove os tokens nas configurações de integrações."
+          );
+        }
         throw new Error(
           `Erro ao criar o contêiner do carrossel: ${carouselData.error.message}`
         );
+      }
       creationId = carouselData.id;
     } else if (postData.post_type === "reel") {
       if (!postData.media_urls || postData.media_urls.length === 0) {
@@ -155,6 +175,11 @@ export async function POST(request: Request) {
       const reelContainerData = await reelContainerResponse.json();
 
       if (reelContainerData.error) {
+        if (reelContainerData.error.code === 190) {
+          throw new Error(
+            "O token de acesso da Meta expirou ou é inválido. Por favor, renove os tokens nas configurações de integrações."
+          );
+        }
         throw new Error(
           `Erro ao criar contêiner do Reel: ${reelContainerData.error.message}`
         );
@@ -187,6 +212,11 @@ export async function POST(request: Request) {
       const storyContainerData = await storyContainerResponse.json();
 
       if (storyContainerData.error) {
+        if (storyContainerData.error.code === 190) {
+          throw new Error(
+            "O token de acesso da Meta expirou ou é inválido. Por favor, renove os tokens nas configurações de integrações."
+          );
+        }
         throw new Error(
           `Erro ao criar contêiner do Story: ${storyContainerData.error.message}`
         );
@@ -241,6 +271,11 @@ export async function POST(request: Request) {
     const publishData = await publishResponse.json();
 
     if (publishData.error) {
+      if (publishData.error.code === 190) {
+        throw new Error(
+          "O token de acesso da Meta expirou ou é inválido. Por favor, renove os tokens nas configurações de integrações."
+        );
+      }
       throw new Error(`Erro ao publicar: ${publishData.error.message}`);
     }
 

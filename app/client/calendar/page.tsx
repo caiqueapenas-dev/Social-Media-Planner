@@ -1,5 +1,5 @@
 "use client";
-
+import { useClientData } from "@/hooks/useClientData";
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ClientLayout } from "@/components/layout/client-layout";
@@ -93,7 +93,7 @@ export default function ClientCalendarPage() {
   const supabase = createClient();
   const [posts, setPosts] = useState<Post[]>([]);
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
-  const [clientId, setClientId] = useState<string | null>(null);
+  const { clientId } = useClientData();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isLoadingDates, setIsLoadingDates] = useState(false);
   const [activeView, setActiveView] = useState("monthly");
@@ -197,28 +197,6 @@ export default function ClientCalendarPage() {
     setSelectedPost(null);
     refreshPosts();
   };
-
-  const loadClientData = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data: clientData } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (clientData) {
-        setClientId(clientData.id);
-      }
-    }
-  };
-
-  useEffect(() => {
-    loadClientData();
-  }, []);
 
   useEffect(() => {
     if (clientId) {

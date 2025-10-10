@@ -287,7 +287,7 @@ function CalendarView() {
 
         {/* Calendar */}
         <Tabs defaultValue="monthly" onValueChange={setActiveView}>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-2">
               {activeView !== "list" && (
                 <>
@@ -312,9 +312,11 @@ function CalendarView() {
                   </Button>
                 </>
               )}
-              <h2 className="text-xl font-semibold capitalize ml-4">
-                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-              </h2>
+              {activeView !== "list" && (
+                <h2 className="text-xl font-semibold capitalize text-center md:text-left">
+                  {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                </h2>
+              )}
             </div>
             <TabsList className="grid w-full max-w-xs grid-cols-3">
               <TabsTrigger value="monthly">Mensal</TabsTrigger>

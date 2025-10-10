@@ -1,5 +1,5 @@
 "use client";
-
+import { useClientData } from "@/hooks/useClientData";
 import { useEffect, useState, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -24,9 +24,9 @@ import toast from "react-hot-toast";
 
 function DashboardContent() {
   const supabase = createClient();
-  const { user, setUser, setLoading } = useAuthStore();
+  const { user } = useAuthStore();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [clientId, setClientId] = useState<string | null>(null);
+  const { clientId } = useClientData();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -39,10 +39,6 @@ function DashboardContent() {
   const showMore = (section: keyof typeof visiblePosts, amount = 3) => {
     setVisiblePosts((prev) => ({ ...prev, [section]: prev[section] + amount }));
   };
-
-  useEffect(() => {
-    loadUser();
-  }, []);
 
   useEffect(() => {
     if (clientId) {
@@ -61,36 +57,6 @@ function DashboardContent() {
       }
     }
   }, [posts, searchParams]);
-
-  const loadUser = async () => {
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-
-    if (authUser) {
-      const { data: userData } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", authUser.id)
-        .single();
-
-      if (userData) {
-        setUser(userData);
-
-        // Get client data
-        const { data: clientData } = await supabase
-          .from("clients")
-          .select("*")
-          .eq("user_id", authUser.id)
-          .single();
-
-        if (clientData) {
-          setClientId(clientData.id);
-        }
-      }
-    }
-    setLoading(false);
-  };
 
   const loadPosts = async () => {
     if (!clientId) return;
@@ -144,9 +110,8 @@ function DashboardContent() {
           to: newStatus,
         },
       },
-    });
+    }); // Se o post foi aprovado com atraso
 
-    // Se o post foi aprovado com atraso
     if (isTooLateToSchedule) {
       toast.success(
         "Post aprovado! O admin foi notificado para publicar manualmente, pois o horário de agendamento está muito próximo ou já passou.",
@@ -176,9 +141,8 @@ function DashboardContent() {
     if (error) {
       toast.error("Erro ao solicitar alteração.");
       return;
-    }
+    } // Adiciona cada linha como uma solicitação de alteração separada
 
-    // Adiciona cada linha como uma solicitação de alteração separada
     const alterationItems = alteration
       .split("\n")
       .filter((line) => line.trim() !== "");
@@ -195,9 +159,7 @@ function DashboardContent() {
       status: "pending",
     }));
 
-    await supabase.from("post_comments").insert(newRequests);
-
-    // O trigger no Supabase já cuida da notificação para o admin.
+    await supabase.from("post_comments").insert(newRequests); // O trigger no Supabase já cuida da notificação para o admin.
 
     toast.success("Alteração solicitada com sucesso!");
     loadPosts();
@@ -219,78 +181,114 @@ function DashboardContent() {
 
   return (
     <>
+           {" "}
       <div className="space-y-6">
-        {/* Header */}
+                {/* Header */}       {" "}
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+                    <h1 className="text-3xl font-bold">Dashboard</h1>         {" "}
           <p className="text-muted-foreground">Bem-vindo, {user?.full_name}!</p>
+                 {" "}
         </div>
-
-        {/* Stats */}
+                {/* Stats */}       {" "}
         <div className="grid gap-4 md:grid-cols-3">
+                   {" "}
           <Card>
+                       {" "}
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                           {" "}
               <CardTitle className="text-sm font-medium">
-                Para Revisão
+                                Para Revisão              {" "}
               </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+                            <Clock className="h-4 w-4 text-muted-foreground" /> 
+                       {" "}
             </CardHeader>
+                       {" "}
             <CardContent>
-              <div className="text-2xl font-bold">{pendingPosts.length}</div>
+                           {" "}
+              <div className="text-2xl font-bold">{pendingPosts.length}</div>   
+                       {" "}
               <p className="text-xs text-muted-foreground">
-                Posts aguardando aprovação
+                                Posts aguardando aprovação              {" "}
               </p>
+                         {" "}
             </CardContent>
+                     {" "}
           </Card>
-
+                   {" "}
           <Card>
+                       {" "}
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                           {" "}
               <CardTitle className="text-sm font-medium">
-                Próximos Posts
+                                Próximos Posts              {" "}
               </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+                           {" "}
+              <Calendar className="h-4 w-4 text-muted-foreground" />           {" "}
             </CardHeader>
+                       {" "}
             <CardContent>
-              <div className="text-2xl font-bold">{approvedPosts.length}</div>
-              <p className="text-xs text-muted-foreground">Posts aprovados</p>
+                           {" "}
+              <div className="text-2xl font-bold">{approvedPosts.length}</div> 
+                         {" "}
+              <p className="text-xs text-muted-foreground">Posts aprovados</p> 
+                       {" "}
             </CardContent>
+                     {" "}
           </Card>
-
+                   {" "}
           <Card>
+                       {" "}
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                           {" "}
               <CardTitle className="text-sm font-medium">
-                Total de Posts
+                                Total de Posts              {" "}
               </CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                           {" "}
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />         
+               {" "}
             </CardHeader>
+                       {" "}
             <CardContent>
-              <div className="text-2xl font-bold">{posts.length}</div>
-              <p className="text-xs text-muted-foreground">Todos os posts</p>
+                           {" "}
+              <div className="text-2xl font-bold">{posts.length}</div>         
+                 {" "}
+              <p className="text-xs text-muted-foreground">Todos os posts</p>   
+                     {" "}
             </CardContent>
+                     {" "}
           </Card>
+                 {" "}
         </div>
-
-        {/* Pending posts */}
+                {/* Pending posts */}       {" "}
         {pendingPosts.length > 0 && (
           <Card>
+                       {" "}
             <CardHeader>
+                           {" "}
               <div className="flex flex-col items-start gap-4">
+                               {" "}
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Posts para Revisão
+                                    <Clock className="h-5 w-5" />               
+                    Posts para Revisão                {" "}
                 </CardTitle>
+                               {" "}
                 <Button
                   onClick={() => setIsBulkModalOpen(true)}
                   className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
                   style={{ backgroundColor: "#8b5cf6" }}
                 >
-                  <CopyCheck className="h-4 w-4" />
-                  Aprovação em Massa
+                                    <CopyCheck className="h-4 w-4" />           
+                        Aprovação em Massa                {" "}
                 </Button>
+                             {" "}
               </div>
+                         {" "}
             </CardHeader>
+                       {" "}
             <CardContent>
+                           {" "}
               <div className="space-y-4">
+                               {" "}
                 {pendingPosts.slice(0, visiblePosts.pending).map((post) => (
                   <div
                     key={post.id}
@@ -300,6 +298,7 @@ function DashboardContent() {
                       setIsReviewModalOpen(true);
                     }}
                   >
+                                       {" "}
                     {post.media_urls && post.media_urls.length > 0 && (
                       <img
                         src={post.media_urls[0]}
@@ -307,50 +306,73 @@ function DashboardContent() {
                         className="w-24 h-24 rounded object-cover"
                       />
                     )}
+                                       {" "}
                     <div className="flex-1 min-w-0">
+                                           {" "}
                       <div className="flex items-center gap-2 mb-2">
-                        {getStatusBadge(post.status)}
+                                                {getStatusBadge(post.status)}   
+                                           {" "}
                         <span className="text-xs text-muted-foreground">
-                          {formatDateTime(post.scheduled_date)}
+                                                   {" "}
+                          {formatDateTime(post.scheduled_date)}                 
+                               {" "}
                         </span>
+                                             {" "}
                       </div>
+                                           {" "}
                       <p className="text-sm mb-3 line-clamp-3">
-                        {post.caption}
+                                                {post.caption}                 
+                           {" "}
                       </p>
+                                           {" "}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Eye className="h-3 w-3" />
-                        Clique para revisar
+                                                <Eye className="h-3 w-3" />     
+                                          Clique para revisar                  
+                           {" "}
                       </div>
+                                         {" "}
                     </div>
+                                     {" "}
                   </div>
                 ))}
+                             {" "}
               </div>
+                           {" "}
               {pendingPosts.length > visiblePosts.pending && (
                 <div className="text-center mt-4">
+                                   {" "}
                   <Button variant="outline" onClick={() => showMore("pending")}>
-                    Ver mais
+                                        Ver mais                  {" "}
                   </Button>
+                                 {" "}
                 </div>
               )}
+                         {" "}
             </CardContent>
+                     {" "}
           </Card>
         )}
-
-        {/* Approved posts */}
+                {/* Approved posts */}       {" "}
         <Card>
+                   {" "}
           <CardHeader>
+                       {" "}
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Próximos Posts Agendados
+                            <Calendar className="h-5 w-5" />             
+              Próximos Posts Agendados            {" "}
             </CardTitle>
+                     {" "}
           </CardHeader>
+                   {" "}
           <CardContent>
+                       {" "}
             {approvedPosts.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum post aprovado no momento
+                                Nenhum post aprovado no momento              {" "}
               </p>
             ) : (
               <div className="space-y-4">
+                               {" "}
                 {approvedPosts.slice(0, visiblePosts.approved).map((post) => (
                   <div
                     key={post.id}
@@ -360,6 +382,7 @@ function DashboardContent() {
                       setIsReviewModalOpen(true);
                     }}
                   >
+                                       {" "}
                     {post.media_urls && post.media_urls.length > 0 && (
                       <img
                         src={post.media_urls[0]}
@@ -367,50 +390,74 @@ function DashboardContent() {
                         className="w-16 h-16 rounded object-cover"
                       />
                     )}
+                                       {" "}
                     <div className="flex-1 min-w-0">
+                                           {" "}
                       <div className="flex items-center gap-2 mb-1">
-                        {getStatusBadge(post.status)}
+                                                {getStatusBadge(post.status)}   
+                                         {" "}
                       </div>
+                                           {" "}
                       <p className="text-sm text-muted-foreground line-clamp-2">
-                        {post.caption}
+                                                {post.caption}                 
+                           {" "}
                       </p>
+                                           {" "}
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                               {" "}
                         <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDateTime(post.scheduled_date)}
+                                                   {" "}
+                          <Calendar className="h-3 w-3" />                     
+                              {formatDateTime(post.scheduled_date)}             
+                                   {" "}
                         </span>
-                        <span className="capitalize">{post.post_type}</span>
+                                               {" "}
+                        <span className="capitalize">{post.post_type}</span>   
+                                         {" "}
                       </div>
+                                         {" "}
                     </div>
+                                     {" "}
                   </div>
                 ))}
+                             {" "}
               </div>
             )}
+                       {" "}
             {approvedPosts.length > visiblePosts.approved && (
               <div className="text-center mt-4">
+                               {" "}
                 <Button variant="outline" onClick={() => showMore("approved")}>
-                  Ver mais
+                                    Ver mais                {" "}
                 </Button>
+                             {" "}
               </div>
             )}
+                     {" "}
           </CardContent>
+                 {" "}
         </Card>
-
-        {/* Published Posts */}
+                {/* Published Posts */}       {" "}
         <Card>
+                   {" "}
           <CardHeader>
+                       {" "}
             <CardTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Últimos Posts Publicados
+                            <History className="h-5 w-5" />              Últimos
+              Posts Publicados            {" "}
             </CardTitle>
+                     {" "}
           </CardHeader>
+                   {" "}
           <CardContent>
+                       {" "}
             {publishedPosts.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum post publicado ainda.
+                                Nenhum post publicado ainda.              {" "}
               </p>
             ) : (
               <div className="space-y-4">
+                               {" "}
                 {publishedPosts.slice(0, visiblePosts.published).map((post) => (
                   <div
                     key={post.id}
@@ -420,6 +467,7 @@ function DashboardContent() {
                       setIsReviewModalOpen(true);
                     }}
                   >
+                                       {" "}
                     {post.media_urls && post.media_urls.length > 0 && (
                       <img
                         src={post.media_urls[0]}
@@ -427,55 +475,73 @@ function DashboardContent() {
                         className="w-16 h-16 rounded object-cover"
                       />
                     )}
+                                       {" "}
                     <div className="flex-1 min-w-0">
+                                           {" "}
                       <div className="flex items-center gap-2 mb-1">
-                        {getStatusBadge(post.status)}
+                                                {getStatusBadge(post.status)}   
+                                         {" "}
                       </div>
+                                           {" "}
                       <p className="text-sm text-muted-foreground line-clamp-2">
-                        {post.caption}
+                                                {post.caption}                 
+                           {" "}
                       </p>
+                                           {" "}
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                               {" "}
                         <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDateTime(post.scheduled_date)}
+                                                   {" "}
+                          <Calendar className="h-3 w-3" />                     
+                              {formatDateTime(post.scheduled_date)}             
+                                   {" "}
                         </span>
-                        <span className="capitalize">{post.post_type}</span>
+                                               {" "}
+                        <span className="capitalize">{post.post_type}</span>   
+                                         {" "}
                       </div>
+                                         {" "}
                     </div>
+                                     {" "}
                   </div>
                 ))}
+                             {" "}
               </div>
             )}
+                       {" "}
             {publishedPosts.length > visiblePosts.published && (
               <div className="text-center mt-4">
+                               {" "}
                 <Button
                   variant="outline"
                   onClick={() => showMore("published", 4)}
                 >
-                  Ver mais
+                                    Ver mais                {" "}
                 </Button>
+                             {" "}
               </div>
             )}
+                     {" "}
           </CardContent>
+                 {" "}
         </Card>
+             {" "}
       </div>
-      {/* Review Modal */}
+            {/* Review Modal */}     {" "}
       {selectedPost && (
-        <PostViewModal
-          // Asserção de não-nulidade para satisfazer o type Post (já está dentro do if selectedPost)
+        <PostViewModal // Asserção de não-nulidade para satisfazer o type Post (já está dentro do if selectedPost)
           post={selectedPost!}
           isOpen={isReviewModalOpen}
           onClose={() => {
             setIsReviewModalOpen(false);
             setSelectedPost(null);
-          }}
-          // Asserção de não-nulidade para satisfazer o type Post
+          }} // Asserção de não-nulidade para satisfazer o type Post
           onApprove={() => handleApprove(selectedPost!)}
           onRefactor={handleRequestAlteration}
           showEditButton={false}
         />
       )}
-
+           {" "}
       {isBulkModalOpen && (
         <BulkApprovalModal
           posts={pendingPosts}
@@ -487,10 +553,10 @@ function DashboardContent() {
           }}
         />
       )}
+         {" "}
     </>
   );
 }
-
 export default function ClientDashboard() {
   return (
     <ClientLayout>

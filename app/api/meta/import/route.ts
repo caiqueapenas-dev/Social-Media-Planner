@@ -2,6 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authorization = request.headers.get("Authorization");
+
+  if (authorization !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
   const supabase = await createClient();
   const { clientId } = await request.json();
 
@@ -49,10 +55,15 @@ export async function POST(request: Request) {
         const response: Response = await fetch(nextUrl);
         const data: ApiResponse = await response.json();
         if (data.error) {
-          throw new Error(
-            `Erro na API da Meta: ${data.error.message} (URL: ${nextUrl})`
-          );
+          // Verifica especificamente por erros de token inválido/expirado
+          if ((data.error as any).code === 190) {
+            throw new Error(
+              "O token de acesso da Meta expirou ou é inválido. Por favor, renove os tokens nas configurações de integrações."
+            );
+          }
+          throw new Error(data.error.message);
         }
+
         allData.push(...data.data);
         nextUrl = data.paging?.next || null;
       }

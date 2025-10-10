@@ -396,3 +396,39 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- =================================================================
+-- ÍNDICE ÚNICO PARA GARANTIR APENAS UM RASCUNHO DE "NOVO POST" POR USUÁRIO
+-- =================================================================
+CREATE UNIQUE INDEX IF NOT EXISTS one_null_draft_per_user 
+ON public.drafts (user_id) 
+WHERE post_id IS NULL;
+
+-- =================================================================
+-- REFORÇO DAS POLÍTICAS DE RLS PARA post_comments
+-- =================================================================
+-- Garante que usuários só possam alterar ou deletar seus próprios comentários.
+DROP POLICY IF EXISTS "Users can manage their own comments" ON public.post_comments;
+
+CREATE POLICY "Users can view comments on their posts"
+ON public.post_comments FOR SELECT
+USING (
+  (post_id IN (SELECT id FROM posts WHERE client_id IN (SELECT id FROM clients WHERE user_id = auth.uid()))) -- Cliente pode ver comentários nos seus posts
+  OR
+  (SELECT role FROM public.users WHERE id = auth.uid()) = 'admin' -- Admin pode ver todos os comentários
+);
+
+CREATE POLICY "Users can insert their own comments"
+ON public.post_comments FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own comments"
+ON public.post_comments FOR UPDATE
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own comments"
+ON public.post_comments FOR DELETE
+USING (auth.uid() = user_id);
+
+-- Habilitar RLS na tabela
+ALTER TABLE public.post_comments ENABLE ROW LEVEL SECURITY;

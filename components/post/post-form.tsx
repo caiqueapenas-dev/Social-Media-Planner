@@ -240,17 +240,19 @@ export function PostForm({
         form_data: { formData, mediaPreviews },
       };
 
-      if (draftId) {
-        await supabase.from("drafts").update(draftData).eq("id", draftId);
-      } else {
-        const { data } = await supabase
-          .from("drafts")
-          .insert(draftData)
-          .select("id")
-          .single();
-        if (data) {
-          setDraftId(data.id);
-        }
+      const { data, error } = await supabase
+        .from("drafts")
+        .upsert(draftData, { onConflict: "user_id, post_id" })
+        .select("id")
+        .single();
+
+      if (error && error.code !== "23505") {
+        // Ignora erros de violação de chave única que o upsert deve tratar
+        console.error("Error saving draft:", error);
+      }
+
+      if (data && !draftId) {
+        setDraftId(data.id);
       }
     };
 
