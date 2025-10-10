@@ -208,7 +208,9 @@ function SpecialDateCard({
               {specialDate.client.name}
             </span>
           ) : (
-            <Badge variant="outline">Público</Badge>
+            <Badge style={{ backgroundColor: "#8b5cf6", color: "white" }}>
+              Todos
+            </Badge>
           )}
         </div>
         <p className="text-sm text-blue-800 dark:text-blue-200">
