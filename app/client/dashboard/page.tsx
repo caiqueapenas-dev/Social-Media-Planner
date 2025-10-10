@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PostViewModal } from "@/components/post/post-view-modal";
 import { Calendar, CheckCircle, Clock, Eye, History } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { formatDateTime } from "@/lib/utils";
 import { Post } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -39,6 +40,18 @@ export default function ClientDashboard() {
       loadPosts();
     }
   }, [clientId]);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const postIdFromUrl = searchParams.get("postId");
+    if (postIdFromUrl && posts.length > 0) {
+      const postToOpen = posts.find((p) => p.id === postIdFromUrl);
+      if (postToOpen) {
+        setSelectedPost(postToOpen);
+        setIsReviewModalOpen(true);
+      }
+    }
+  }, [posts, searchParams]);
 
   const loadUser = async () => {
     const {

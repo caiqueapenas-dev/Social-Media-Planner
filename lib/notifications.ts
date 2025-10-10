@@ -50,7 +50,7 @@ export async function notifyPostApproved(postId: string, clientId: string) {
       userId: admin.id,
       title: "Post Aprovado",
       message: `${client?.name} aprovou um post`,
-      link: `/admin/calendar`,
+      link: `/admin/calendar?postId=${postId}`,
     });
   }
 }
@@ -80,7 +80,7 @@ export async function notifyPostApprovedLate(postId: string, clientId: string) {
       userId: admin.id,
       title: "Post Aprovado com Atraso",
       message,
-      link: `/admin/dashboard`,
+      link: `/admin/calendar?postId=${postId}`,
     });
   }
 }
@@ -106,12 +106,12 @@ export async function notifyPostRejected(postId: string, clientId: string) {
       userId: admin.id,
       title: "Post Reprovado",
       message: `${client?.name} reprovou um post`,
-      link: `/admin/calendar`,
+      link: `/admin/calendar?postId=${postId}`,
     });
   }
 }
 
-export async function notifyNewPost(clientId: string) {
+export async function notifyNewPost(postId: string, clientId: string) {
   const supabase = createClient();
 
   const { data: client } = await supabase
@@ -126,6 +126,6 @@ export async function notifyNewPost(clientId: string) {
     userId: client.user_id,
     title: "Novo Post para Revisão",
     message: "Um novo post está aguardando sua aprovação",
-    link: "/client/dashboard",
+    link: `/client/dashboard?postId=${postId}`,
   });
 }

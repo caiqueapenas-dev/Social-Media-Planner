@@ -16,7 +16,7 @@ async function getActiveClients(supabase: any) {
   return clients;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   try {
     // É necessário um cliente Supabase com a chave de administrador (service_role)
     const supabaseAdmin = createClient(
@@ -74,7 +74,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: any) {
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

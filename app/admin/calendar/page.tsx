@@ -48,11 +48,26 @@ function CalendarView() {
     loadPosts();
     loadSpecialDates(); // Carrega as datas especiais
 
+    loadSpecialDates();
+
     // Open new post modal if query param is present
     if (searchParams?.get("newPost") === "true") {
       setIsPostModalOpen(true);
     }
-  }, [searchParams, selectedClientId, currentMonth]);
+  }, [selectedClientId, currentMonth]);
+
+  // Effect to open a post from URL param
+  useEffect(() => {
+    const postIdFromUrl = searchParams?.get("postId");
+    if (postIdFromUrl && posts.length > 0) {
+      const postToOpen = posts.find((p) => p.id === postIdFromUrl);
+      if (postToOpen) {
+        handlePostClick(postToOpen);
+        // Reset URL to avoid re-opening on refresh
+        window.history.replaceState({}, "", "/admin/calendar");
+      }
+    }
+  }, [posts, searchParams]);
 
   const loadClients = async () => {
     const { data } = await supabase
@@ -174,7 +189,7 @@ function CalendarView() {
 
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
-    setIsPostModalOpen(true);
+    setIsPostFormModalOpen(true);
   };
 
   const handleClosePostModal = () => {

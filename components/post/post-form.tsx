@@ -451,9 +451,9 @@ export function PostForm({
 
         if (error) throw error;
 
-        if (formData.status === "pending" && formData.client_id) {
+        if (formData.status === "pending" && formData.client_id && newPost) {
           const { notifyNewPost } = await import("@/lib/notifications");
-          await notifyNewPost(formData.client_id);
+          await notifyNewPost(newPost.id, formData.client_id);
         }
 
         toast.success("Post criado com sucesso!");
