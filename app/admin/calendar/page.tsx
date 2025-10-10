@@ -268,7 +268,31 @@ function CalendarView() {
 
         {/* Calendar */}
         <Tabs defaultValue="monthly" onValueChange={setActiveView}>
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={
+                  activeView === "monthly" ? previousMonth : previousWeek
+                }
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={activeView === "monthly" ? nextMonth : nextWeek}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" onClick={goToToday}>
+                Hoje
+              </Button>
+              <h2 className="text-xl font-semibold capitalize ml-4">
+                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+              </h2>
+            </div>
             <TabsList>
               <TabsTrigger value="monthly">Mensal</TabsTrigger>
               <TabsTrigger value="weekly">Semanal</TabsTrigger>
@@ -277,34 +301,6 @@ function CalendarView() {
           </div>
           <TabsContent value="monthly">
             <Card className="p-6">
-              {/* Month navigation */}
-              <div className="flex items-center justify-between mb-6">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={
-                    activeView === "monthly" ? previousMonth : previousWeek
-                  }
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-semibold capitalize">
-                    {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-                  </h2>
-                  <Button variant="outline" onClick={goToToday}>
-                    Hoje
-                  </Button>
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={activeView === "monthly" ? nextMonth : nextWeek}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
               {/* Weekday headers */}
               <div className="grid grid-cols-7 gap-2 mb-2">
                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(
