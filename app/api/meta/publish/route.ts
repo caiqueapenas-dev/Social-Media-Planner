@@ -133,7 +133,7 @@ export async function POST(request: Request) {
         throw new Error("Reels precisam de um vídeo.");
       }
 
-      const reelContainerUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=REELS&video_url=${postData.media_urls[0]}&caption=${caption}&access_token=${meta_page_access_token}`;
+      const reelContainerUrl = `${BASE_URL}/${instagram_business_id}/media?media_type=REELS&video_url=${postData.media_urls[0]}&caption=${caption}&thumb_offset=1000&access_token=${meta_page_access_token}`;
       const reelContainerResponse = await fetch(reelContainerUrl, {
         method: "POST",
       });

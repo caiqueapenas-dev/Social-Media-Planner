@@ -1,5 +1,8 @@
 "use client";
 import { toast } from "react-hot-toast";
+
+import { PostViewModal } from "@/components/post/post-view-modal";
+import { Input } from "@/components/ui/input";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -90,7 +93,17 @@ function CalendarView() {
         client:clients(*)
       `
       )
-      .order("scheduled_date", { ascending: true });
+      .order("scheduled_date", { ascending: false });
+
+    if (dateRange.from) {
+      query = query.gte(
+        "scheduled_date",
+        new Date(dateRange.from).toISOString()
+      );
+    }
+    if (dateRange.to) {
+      query = query.lte("scheduled_date", new Date(dateRange.to).toISOString());
+    }
 
     if (selectedClientId) {
       query = query.or(`client_id.eq.${selectedClientId},client_id.is.null`);
@@ -175,9 +188,12 @@ function CalendarView() {
     setIsPostModalOpen(true);
   };
 
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
-    setIsPostFormModalOpen(true);
+    setIsViewModalOpen(true);
   };
 
   const handleClosePostModal = () => {
@@ -273,35 +289,81 @@ function CalendarView() {
         <Tabs defaultValue="monthly" onValueChange={setActiveView}>
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={
-                  activeView === "monthly" ? previousMonth : previousWeek
-                }
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={activeView === "monthly" ? nextMonth : nextWeek}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" onClick={goToToday}>
-                Hoje
-              </Button>
+              {activeView !== "list" && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={
+                      activeView === "monthly" ? previousMonth : previousWeek
+                    }
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={activeView === "monthly" ? nextMonth : nextWeek}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" onClick={goToToday}>
+                    Hoje
+                  </Button>
+                </>
+              )}
               <h2 className="text-xl font-semibold capitalize ml-4">
                 {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
               </h2>
             </div>
-            <TabsList>
+            <TabsList className="grid w-full max-w-xs grid-cols-3">
               <TabsTrigger value="monthly">Mensal</TabsTrigger>
               <TabsTrigger value="weekly">Semanal</TabsTrigger>
               <TabsTrigger value="list">Lista</TabsTrigger>
             </TabsList>
           </div>
+          <TabsContent value="list">
+            <div className="flex items-end gap-4 mb-4 p-4 border rounded-lg bg-card">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="date-from">De</Label>
+                <Input
+                  type="date"
+                  id="date-from"
+                  value={dateRange.from}
+                  onChange={(e) =>
+                    setDateRange((prev) => ({ ...prev, from: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="date-to">Até</Label>
+                <Input
+                  type="date"
+                  id="date-to"
+                  value={dateRange.to}
+                  onChange={(e) =>
+                    setDateRange((prev) => ({ ...prev, to: e.target.value }))
+                  }
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDateRange({ from: "", to: "" });
+                  loadPosts();
+                }}
+              >
+                Limpar
+              </Button>
+            </div>
+            <AdminCalendarList
+              posts={posts}
+              specialDates={specialDates}
+              onPostClick={handlePostClick}
+              onBulkDelete={handleBulkDelete}
+              onBulkStatusChange={handleBulkStatusChange}
+            />
+          </TabsContent>
           <TabsContent value="monthly">
             <Card className="p-6">
               {/* Weekday headers */}
@@ -380,18 +442,20 @@ function CalendarView() {
               }}
             />
           </TabsContent>
-          <TabsContent value="list">
-            <AdminCalendarList
-              posts={posts}
-              specialDates={specialDates}
-              onPostClick={(post) => {
-                setSelectedPost(post);
+          {selectedPost && (
+            <PostViewModal
+              post={selectedPost}
+              isOpen={isViewModalOpen}
+              onClose={() => {
+                setIsViewModalOpen(false);
+                setSelectedPost(null);
+              }}
+              onEdit={() => {
+                setIsViewModalOpen(false);
                 setIsPostModalOpen(true);
               }}
-              onBulkDelete={handleBulkDelete}
-              onBulkStatusChange={handleBulkStatusChange}
             />
-          </TabsContent>
+          )}
         </Tabs>
       </div>
 

@@ -39,7 +39,7 @@ export function AdminCalendarList({
 }: AdminCalendarListProps) {
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
-
+  const [visibleItems, setVisibleItems] = useState(10);
   const toggleSelection = (postId: string) => {
     setSelectedPosts((prev) =>
       prev.includes(postId)
@@ -59,16 +59,18 @@ export function AdminCalendarList({
       type: "special-date",
       date: sd.date,
     })),
-  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const filteredItems = combinedItems.filter((item: any) => {
     if (activeFilter === "all") return true;
     if (item.type === "special-date") {
-      return true; // Always show special dates regardless of the filter
+      // Show special dates only if 'all' is selected or no other filter is active
+      return activeFilter === "all";
     }
-    // For posts, filter by status
     return item.status === activeFilter;
   });
+
+  const itemsToShow = filteredItems.slice(0, visibleItems);
 
   const filteredPosts = filteredItems.filter(
     (item) => item.type === "post"
@@ -145,9 +147,10 @@ export function AdminCalendarList({
           </button>
         ))}
       </div>
+
       <div className="space-y-3">
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item: any) => (
+        {itemsToShow.length > 0 ? (
+          itemsToShow.map((item: any) => (
             <div
               key={`${item.type}-${item.id}`}
               className="flex items-start gap-3"
@@ -178,6 +181,16 @@ export function AdminCalendarList({
           </p>
         )}
       </div>
+      {filteredItems.length > visibleItems && (
+        <div className="text-center mt-4">
+          <Button
+            variant="outline"
+            onClick={() => setVisibleItems((prev) => prev + 10)}
+          >
+            Ver mais
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

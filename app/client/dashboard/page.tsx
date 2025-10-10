@@ -120,11 +120,13 @@ export default function ClientDashboard() {
   const handleApprove = async (post: Post) => {
     const scheduledDate = new Date(post.scheduled_date);
     const now = new Date();
-    const isLate = scheduledDate < now;
+    const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
+    const isTooLateToSchedule = scheduledDate < tenMinutesFromNow;
+    const newStatus = isTooLateToSchedule ? "late_approved" : "approved";
 
     const { error } = await supabase
       .from("posts")
-      .update({ status: isLate ? "late_approved" : "approved" })
+      .update({ status: newStatus })
       .eq("id", post.id);
 
     if (error) {
@@ -138,17 +140,17 @@ export default function ClientDashboard() {
       changes: {
         status: {
           from: post.status,
-          to: isLate ? "late_approved" : "approved",
+          to: newStatus,
         },
       },
     });
 
     // Se o post foi aprovado com atraso
-    if (isLate) {
+    if (isTooLateToSchedule) {
       const { notifyPostApprovedLate } = await import("@/lib/notifications");
       await notifyPostApprovedLate(post.id, post.client_id);
       toast.success(
-        "Post aprovado! O admin foi notificado para publicar manualmente pois o horário já passou.",
+        "Post aprovado! O admin foi notificado para publicar manualmente, pois o horário de agendamento está muito próximo ou já passou.",
         { duration: 6000 }
       );
     } else {
@@ -156,44 +158,7 @@ export default function ClientDashboard() {
       const { notifyPostApproved } = await import("@/lib/notifications");
       await notifyPostApproved(post.id, post.client_id);
 
-      toast.promise(
-        fetch("/api/meta/publish", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId: post.client_id,
-            postData: { ...post, status: "approved" },
-          }),
-        }).then(async (response) => {
-          const result = await response.json();
-          if (!response.ok) {
-            throw new Error(result.error || "Falha ao agendar na Meta.");
-          }
-          return result;
-        }),
-        {
-          loading: "Post aprovado! Agendando na Meta...",
-          success: "Post agendado na Meta com sucesso!",
-          error: (err) => {
-            // Em caso de erro, reverte o post para refação e adiciona um comentário
-            const handleError = async () => {
-              await supabase
-                .from("posts")
-                .update({ status: "refactor" })
-                .eq("id", post.id);
-              await supabase.from("post_comments").insert({
-                post_id: post.id,
-                user_id: user?.id, // Pode ser melhor um ID de "sistema"
-                content: `Falha no agendamento automático: ${err.message}`,
-                type: "comment",
-              });
-              loadPosts();
-            };
-            handleError();
-            return `Erro no agendamento: ${err.message}`;
-          },
-        }
-      );
+      toast.success("Post aprovado!");
     }
 
     loadPosts();
