@@ -17,6 +17,9 @@ import {
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { Post, SpecialDate } from "@/lib/types";
+import { PostViewModal } from "@/components/post/post-view-modal"; // Novo import
+import { useAuthStore } from "@/store/useAuthStore"; // Novo import
+import toast from "react-hot-toast"; // Novo import
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { addWeeks, endOfWeek, startOfWeek, subWeeks } from "date-fns";
 import { PostCard } from "@/components/post/post-card";
@@ -93,6 +96,76 @@ export default function ClientCalendarPage() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [activeView, setActiveView] = useState("monthly");
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { user } = useAuthStore();
+
+  const handlePostClick = (post: Post) => {
+    setSelectedPost(post);
+    setIsModalOpen(true);
+  };
+
+  const handleApprove = async (post: Post) => {
+    const { error } = await supabase
+      .from("posts")
+      .update({ status: "approved" })
+      .eq("id", post.id);
+
+    if (error) {
+      toast.error("Erro ao aprovar post");
+      return;
+    }
+
+    await supabase.from("edit_history").insert({
+      post_id: post.id,
+      edited_by: user?.id,
+      changes: { status: { from: post.status, to: "approved" } },
+    });
+
+    const { notifyPostApproved } = await import("@/lib/notifications");
+    await notifyPostApproved(post.id, post.client_id);
+
+    toast.success("Post aprovado!");
+    setIsModalOpen(false);
+    setSelectedPost(null);
+    loadPosts();
+  };
+
+  const handleRequestAlteration = async (post: Post, alteration: string) => {
+    if (!alteration.trim()) {
+      toast.error("Por favor, descreva a alteração necessária.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("posts")
+      .update({ status: "refactor" })
+      .eq("id", post.id);
+
+    if (error) {
+      toast.error("Erro ao solicitar alteração.");
+      return;
+    }
+
+    const alterationItems = alteration
+      .split("\n")
+      .filter((line) => line.trim() !== "");
+
+    const newRequests = alterationItems.map((item) => ({
+      post_id: post.id,
+      user_id: user?.id,
+      content: item,
+      type: "alteration_request",
+      status: "pending",
+    }));
+
+    await supabase.from("post_comments").insert(newRequests);
+
+    toast.success("Alteração solicitada com sucesso!");
+    setIsModalOpen(false);
+    setSelectedPost(null);
+    loadPosts();
+  };
 
   useEffect(() => {
     loadClientData();
@@ -316,15 +389,26 @@ export default function ClientCalendarPage() {
               <ClientCalendarList
                 posts={posts}
                 specialDates={specialDates}
-                onPostClick={(post) => {
-                  // Você precisará implementar a lógica para abrir o modal de visualização do post
-                  console.log("Post clicado:", post);
-                }}
+                onPostClick={handlePostClick}
               />
             </Card>
           </TabsContent>
         </Tabs>
 
+        {selectedPost && (
+          <PostViewModal
+            post={selectedPost}
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedPost(null);
+              loadPosts();
+            }}
+            onApprove={handleApprove}
+            onRefactor={handleRequestAlteration}
+            showEditButton={false}
+          />
+        )}
         {/* Legend */}
         <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center gap-2">

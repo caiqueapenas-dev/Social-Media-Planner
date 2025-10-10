@@ -57,31 +57,41 @@ export function Modal({
           }
         )}
       >
-        {/* Header */}
+        {/* Close Button - Always Present */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </button>
+
+        {/* Header - Now only contains title/description (conditional) */}
         {(title || description) && (
           <div className="p-6 pb-4 border-b">
-            <div className="flex items-start justify-between">
-              <div>
-                {title && <h2 className="text-lg font-semibold">{title}</h2>}
-                {description && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {description}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={onClose}
-                className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </button>
+            <div className="pr-10">
+              {" "}
+              {/* Add padding right to avoid overlap with button */}
+              {title && <h2 className="text-lg font-semibold">{title}</h2>}
+              {description && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {description}
+                </p>
+              )}
             </div>
           </div>
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        <div
+          className={cn("flex-1 overflow-y-auto p-6", {
+            "pt-10": !(
+              title || description
+            ) /* Add top padding to content if there's no header to make space for the close button */,
+          })}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
