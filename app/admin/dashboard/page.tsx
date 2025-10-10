@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Star,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { PostCard } from "@/components/post/post-card";
 import { formatDateTime, formatDate } from "@/lib/utils";
@@ -45,6 +46,7 @@ export default function AdminDashboardImproved() {
     pending: 3,
     approved: 3,
     specialDates: 3,
+    lateApproved: 3,
   });
 
   const showMore = (section: keyof typeof visibleItems) => {
@@ -146,6 +148,8 @@ export default function AdminDashboardImproved() {
     (p) => p.status === "approved" && new Date(p.scheduled_date) > new Date()
   );
 
+  const lateApprovedPosts = posts.filter((p) => p.status === "late_approved");
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -163,6 +167,41 @@ export default function AdminDashboardImproved() {
             </Button>
           </Link>
         </div>
+
+        {/* Late Approved Posts */}
+        {lateApprovedPosts.length > 0 && (
+          <Card className="border-orange-500">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-500">
+                <AlertTriangle className="h-5 w-5" />
+                Aprovados Atrasados (Publicar Manualmente)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {lateApprovedPosts
+                  .slice(0, visibleItems.lateApproved)
+                  .map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onClick={handlePostClick}
+                    />
+                  ))}
+              </div>
+              {lateApprovedPosts.length > visibleItems.lateApproved && (
+                <div className="text-center mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => showMore("lateApproved")}
+                  >
+                    Ver mais
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

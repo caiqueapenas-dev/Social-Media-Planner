@@ -98,19 +98,7 @@ function CalendarView() {
 
     const { data } = await query;
     if (data) {
-      const now = new Date();
-      const postsToUpdate = data.filter(
-        (p) => p.status === "approved" && new Date(p.scheduled_date) <= now
-      );
-
-      if (postsToUpdate.length > 0) {
-        const updates = postsToUpdate.map((p) =>
-          supabase.from("posts").update({ status: "published" }).eq("id", p.id)
-        );
-        Promise.all(updates).then(() => loadPosts()); // Recarrega após a atualização
-      } else {
-        setPosts(data as unknown as Post[]);
-      }
+      setPosts(data as unknown as Post[]);
     }
   };
 

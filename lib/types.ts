@@ -6,7 +6,8 @@ export type PostStatus =
   | "approved"
   | "rejected"
   | "published"
-  | "refactor";
+  | "refactor"
+  | "late_approved";
 
 // ... (resto do arquivo sem alterações)
 export type PostType = "photo" | "carousel" | "reel" | "story";

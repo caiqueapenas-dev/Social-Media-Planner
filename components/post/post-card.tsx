@@ -21,6 +21,7 @@ const getStatusBadge = (status: string) => {
     rejected: { variant: "destructive", label: "Rejeitado" },
     published: { variant: "default", label: "Publicado" },
     refactor: { variant: "outline", label: "Em Refação" },
+    late_approved: { variant: "warning", label: "Aprovado (Atrasado)" },
   };
   const config = statusConfig[status] || statusConfig.draft;
   return <Badge variant={config.variant}>{config.label}</Badge>;

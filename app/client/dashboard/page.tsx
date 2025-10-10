@@ -109,9 +109,13 @@ export default function ClientDashboard() {
     );
 
   const handleApprove = async (post: Post) => {
+    const scheduledDate = new Date(post.scheduled_date);
+    const now = new Date();
+    const isLate = scheduledDate < now;
+
     const { error } = await supabase
       .from("posts")
-      .update({ status: "approved" })
+      .update({ status: isLate ? "late_approved" : "approved" })
       .eq("id", post.id);
 
     if (error) {
@@ -122,14 +126,16 @@ export default function ClientDashboard() {
     await supabase.from("edit_history").insert({
       post_id: post.id,
       edited_by: user?.id,
-      changes: { status: { from: post.status, to: "approved" } },
+      changes: {
+        status: {
+          from: post.status,
+          to: isLate ? "late_approved" : "approved",
+        },
+      },
     });
 
-    const scheduledDate = new Date(post.scheduled_date);
-    const now = new Date();
-
     // Se o post foi aprovado com atraso
-    if (scheduledDate < now) {
+    if (isLate) {
       const { notifyPostApprovedLate } = await import("@/lib/notifications");
       await notifyPostApprovedLate(post.id, post.client_id);
       toast.success(
