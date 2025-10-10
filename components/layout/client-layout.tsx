@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Button } from "@/components/ui/button";
-import { 
-  Calendar, 
-  LayoutDashboard, 
+import {
+  Calendar,
+  LayoutDashboard,
   LogOut,
   Menu,
   X,
   Sun,
   Moon,
-  Lightbulb
+  Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
@@ -32,8 +32,34 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { user } = useAuthStore();
+  const { user, setUser, isLoading, setLoading } = useAuthStore();
   const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      setLoading(true);
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      if (authUser) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+
+        if (userData) {
+          setUser(userData as any);
+        }
+      }
+      setLoading(false);
+    };
+
+    if (!user) {
+      fetchUser();
+    }
+  }, [supabase, setUser, setLoading, user]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -64,10 +90,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </div>
               <span className="font-bold text-lg">SMP</span>
             </div>
-            <button
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            >
+            <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -93,13 +116,19 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
           <div className="p-4 border-t space-y-2">
-            <div className="flex items-center gap-2 px-3 py-2">
-              <div className="flex-1">
-                <p className="text-sm font-medium">{user?.full_name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+            {isLoading ? (
+              <div className="px-3 py-2 space-y-2">
+                <div className="h-4 w-3/4 rounded bg-muted animate-pulse"></div>
+                <div className="h-3 w-full rounded bg-muted animate-pulse"></div>
               </div>
-              
-            </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-2">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{user?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -139,9 +168,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           <div className="w-6" />
         </header>
         <main className="p-4 lg:p-8">
-  <NotificationBell />
-  {children}
-</main>
+          <NotificationBell />
+          {children}
+        </main>
       </div>
     </div>
   );

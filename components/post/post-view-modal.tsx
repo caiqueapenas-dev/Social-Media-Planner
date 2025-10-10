@@ -1,7 +1,10 @@
 // components/post/post-view-modal.tsx
 
+// components/post/post-view-modal.tsx
+
 "use client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 
 import { useState, useEffect } from "react";
 import { Post, PostComment } from "@/lib/types";
@@ -334,18 +337,19 @@ export function PostViewModal({
             <TabsTrigger value="alterations">Alterações</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
           </TabsList>
-          <TabsContent value="comments" className="mt-4"></TabsContent>
-          <TabsContent value="alterations" className="mt-4">
-            <AlterationChecklist
+          <TabsContent value="comments" className="mt-4">
+            <PostComments
               postId={post.id}
-              requests={alterationRequests}
+              comments={normalComments}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelection}
               onDelete={handleDelete}
             />
-            <PostComments
+          </TabsContent>
+          <TabsContent value="alterations" className="mt-4">
+            <AlterationChecklist
               postId={post.id}
-              comments={normalComments}
+              requests={alterationRequests}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelection}
               onDelete={handleDelete}
@@ -357,13 +361,5 @@ export function PostViewModal({
         </Tabs>
       </div>
     </Modal>
-  );
-}
-
-function Label({ children, className = "", ...props }: any) {
-  return (
-    <label className={`text-sm font-medium ${className}`} {...props}>
-      {children}
-    </label>
   );
 }

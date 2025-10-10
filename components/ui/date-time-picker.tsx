@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock } from "lucide-react";
@@ -26,6 +26,10 @@ export function DateTimePicker({
   const [isOpen, setIsOpen] = useState(false);
   const [tempDate, setTempDate] = useState(value);
 
+  useEffect(() => {
+    setTempDate(value);
+  }, [value]);
+
   const handleSave = () => {
     onChange(tempDate);
     setIsOpen(false);
@@ -33,10 +37,12 @@ export function DateTimePicker({
 
   const formatDisplay = (dateStr: string) => {
     if (!dateStr) return "Selecione data e hora";
-    
+
     try {
       const date = new Date(dateStr);
-      return format(date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR });
+      return format(date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", {
+        locale: ptBR,
+      });
     } catch {
       return "Selecione data e hora";
     }
@@ -49,7 +55,7 @@ export function DateTimePicker({
           {label} {required && <span className="text-destructive">*</span>}
         </Label>
       )}
-      
+
       <button
         type="button"
         onClick={() => setIsOpen(true)}
@@ -96,7 +102,9 @@ export function DateTimePicker({
                   type="time"
                   value={tempDate.split("T")[1]?.slice(0, 5) || ""}
                   onChange={(e) => {
-                    const date = tempDate.split("T")[0] || format(new Date(), "yyyy-MM-dd");
+                    const date =
+                      tempDate.split("T")[0] ||
+                      format(new Date(), "yyyy-MM-dd");
                     setTempDate(`${date}T${e.target.value}`);
                   }}
                   className="text-base"
@@ -114,11 +122,7 @@ export function DateTimePicker({
             >
               Cancelar
             </Button>
-            <Button
-              type="button"
-              onClick={handleSave}
-              className="flex-1"
-            >
+            <Button type="button" onClick={handleSave} className="flex-1">
               Confirmar
             </Button>
           </div>
