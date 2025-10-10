@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { EditHistory, User } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 import { History } from "lucide-react";
+import Image from "next/image";
 
 interface PostHistoryProps {
   postId: string;
@@ -33,7 +34,7 @@ export function PostHistory({ postId }: PostHistoryProps) {
       }
     };
     fetchHistory();
-  }, [postId]);
+  }, [postId, supabase]);
 
   if (history.length === 0) {
     return null;
@@ -45,22 +46,25 @@ export function PostHistory({ postId }: PostHistoryProps) {
       return (
         <div className="mt-2 text-xs space-y-1">
           <p>
-            <span className="font-semibold">De:</span> "{change.from}"
+            <span className="font-semibold">De:</span> &quot;{change.from}&quot;
           </p>
           <p>
-            <span className="font-semibold">Para:</span> "{change.to}"
+            <span className="font-semibold">Para:</span> &quot;{change.to}&quot;
           </p>
         </div>
       );
     }
+
     const statusChange = changes.status;
     if (statusChange) {
       return (
         <p className="mt-1 text-xs font-semibold">
-          Status alterado de "{statusChange.from}" para "{statusChange.to}"
+          Status alterado de &quot;{statusChange.from}&quot; para &quot;
+          {statusChange.to}&quot;
         </p>
       );
     }
+
     return (
       <p className="mt-1 text-xs text-muted-foreground">
         Outras alterações foram feitas.
@@ -78,12 +82,16 @@ export function PostHistory({ postId }: PostHistoryProps) {
         {history.map((entry) => (
           <div key={entry.id} className="p-3 border-l-2">
             <div className="flex items-center gap-2">
-              <img
+              <Image
                 src={
                   entry.user.avatar_url ||
-                  `https://ui-avatars.com/api/?name=${entry.user.full_name}`
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    entry.user.full_name
+                  )}`
                 }
                 alt={entry.user.full_name}
+                width={20}
+                height={20}
                 className="w-5 h-5 rounded-full"
               />
               <span className="text-sm font-semibold">
