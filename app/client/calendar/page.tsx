@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ClientLayout } from "@/components/layout/client-layout";
 import { Card } from "@/components/ui/card";
@@ -95,10 +95,39 @@ export default function ClientCalendarPage() {
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
   const [clientId, setClientId] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [isLoadingDates, setIsLoadingDates] = useState(false); // Adiciona estado de loading para datas
   const [activeView, setActiveView] = useState("monthly");
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { user } = useAuthStore();
+
+  const refreshPosts = useCallback(async () => {
+    if (!clientId) return;
+    const { data } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("scheduled_date", { ascending: true });
+
+    if (data) {
+      setPosts(data);
+    }
+  }, [supabase, clientId]);
+
+  const refreshSpecialDates = useCallback(async () => {
+    if (!clientId) return;
+    // CORREÇÃO: Busca datas específicas do cliente OU datas públicas (client_id is null)
+    const { data, error } = await supabase
+      .from("special_dates")
+      .select(`*, client:clients(id, name, brand_color)`) // Inclui cliente para exibição
+      .or(`client_id.eq.${clientId},client_id.is.null`);
+
+    if (error) {
+      console.error("Error loading special dates:", error);
+    } else {
+      setSpecialDates(data || []);
+    }
+  }, [supabase, clientId]);
 
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
@@ -128,7 +157,7 @@ export default function ClientCalendarPage() {
     toast.success("Post aprovado!");
     setIsModalOpen(false);
     setSelectedPost(null);
-    loadPosts();
+    refreshPosts(); // Chama a função corrigida sem argumentos
   };
 
   const handleRequestAlteration = async (post: Post, alteration: string) => {
@@ -164,19 +193,8 @@ export default function ClientCalendarPage() {
     toast.success("Alteração solicitada com sucesso!");
     setIsModalOpen(false);
     setSelectedPost(null);
-    loadPosts();
+    refreshPosts(); // Chama a função corrigida sem argumentos
   };
-
-  useEffect(() => {
-    loadClientData();
-  }, []);
-
-  useEffect(() => {
-    if (clientId) {
-      loadPosts();
-      loadSpecialDates();
-    }
-  }, [clientId, currentMonth]);
 
   const loadClientData = async () => {
     const {
@@ -196,30 +214,17 @@ export default function ClientCalendarPage() {
     }
   };
 
-  const loadPosts = async () => {
-    if (!clientId) return;
-    const { data } = await supabase
-      .from("posts")
-      .select("*")
-      .eq("client_id", clientId)
-      .order("scheduled_date", { ascending: true });
+  useEffect(() => {
+    loadClientData();
+  }, []);
 
-    if (data) {
-      setPosts(data);
+  useEffect(() => {
+    if (clientId) {
+      // Chama as novas funções estáveis
+      refreshPosts();
+      refreshSpecialDates();
     }
-  };
-
-  const loadSpecialDates = async () => {
-    if (!clientId) return;
-    const { data } = await supabase
-      .from("special_dates")
-      .select("*")
-      .or(`client_id.eq.${clientId},client_id.is.null`);
-
-    if (data) {
-      setSpecialDates(data);
-    }
-  };
+  }, [clientId, currentMonth, refreshPosts, refreshSpecialDates]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -347,7 +352,7 @@ export default function ClientCalendarPage() {
                       <ClientCalendarDay
                         posts={dayPosts}
                         specialDate={specialDate}
-                        onPostUpdate={loadPosts}
+                        onPostUpdate={refreshPosts}
                       />
                     </div>
                   );
@@ -376,7 +381,7 @@ export default function ClientCalendarPage() {
                       <ClientCalendarDay
                         posts={getPostsForDay(day)}
                         specialDate={getSpecialDateForDay(day)}
-                        onPostUpdate={loadPosts}
+                        onPostUpdate={refreshPosts}
                       />
                     </div>
                   </div>
@@ -402,7 +407,7 @@ export default function ClientCalendarPage() {
             onClose={() => {
               setIsModalOpen(false);
               setSelectedPost(null);
-              loadPosts();
+              refreshPosts(); // Usando o nome correto da função
             }}
             onApprove={handleApprove}
             onRefactor={handleRequestAlteration}

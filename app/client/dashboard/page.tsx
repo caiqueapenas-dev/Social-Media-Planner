@@ -298,7 +298,11 @@ function DashboardContent() {
                 {pendingPosts.slice(0, visiblePosts.pending).map((post) => (
                   <div
                     key={post.id}
-                    className="flex items-start gap-4 p-4 rounded-lg border"
+                    className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedPost(post);
+                      setIsReviewModalOpen(true);
+                    }}
                   >
                     {post.media_urls && post.media_urls.length > 0 && (
                       <img
@@ -317,17 +321,10 @@ function DashboardContent() {
                       <p className="text-sm mb-3 line-clamp-3">
                         {post.caption}
                       </p>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setSelectedPost(post);
-                          setIsReviewModalOpen(true);
-                        }}
-                        className="gap-2"
-                      >
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Eye className="h-3 w-3" />
-                        Revisar Post
-                      </Button>
+                        Clique para revisar
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -361,7 +358,11 @@ function DashboardContent() {
                 {approvedPosts.slice(0, visiblePosts.approved).map((post) => (
                   <div
                     key={post.id}
-                    className="flex items-start gap-4 p-4 rounded-lg border"
+                    className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedPost(post);
+                      setIsReviewModalOpen(true);
+                    }}
                   >
                     {post.media_urls && post.media_urls.length > 0 && (
                       <img
@@ -417,7 +418,11 @@ function DashboardContent() {
                 {publishedPosts.slice(0, visiblePosts.published).map((post) => (
                   <div
                     key={post.id}
-                    className="flex items-start gap-4 p-4 rounded-lg border"
+                    className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedPost(post);
+                      setIsReviewModalOpen(true);
+                    }}
                   >
                     {post.media_urls && post.media_urls.length > 0 && (
                       <img

@@ -59,7 +59,9 @@ export function NotificationBell() {
 
   const markAsRead = async (id: string) => {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-    const newNotifications = notifications.map(n => n.id === id ? { ...n, is_read: true } : n);
+    const newNotifications = notifications.map((n) =>
+      n.id === id ? { ...n, is_read: true } : n
+    );
     setNotifications(newNotifications);
     setHasUnread(newNotifications.some((n) => !n.is_read));
   };
@@ -71,8 +73,8 @@ export function NotificationBell() {
       .update({ is_read: true })
       .eq("user_id", user.id)
       .eq("is_read", false);
-    
-    setNotifications(notifications.map(n => ({...n, is_read: true })));
+
+    setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
     setHasUnread(false);
   };
 
@@ -81,7 +83,7 @@ export function NotificationBell() {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-[200]">
+    <div className="fixed top-4 right-4 z-[90]">
       <div className="relative">
         <Button
           variant="ghost"
@@ -98,12 +100,10 @@ export function NotificationBell() {
         {showDropdown && (
           <>
             <div
-              className="fixed inset-0 z-[200]"
+              className="fixed inset-0 z-[80]"
               onClick={() => setShowDropdown(false)}
             />
-            <div
-              className="absolute top-full right-0 mt-2 w-80 bg-card border rounded-lg shadow-lg z-[201] max-h-96 overflow-y-auto animate-slide-down"
-            >
+            <div className="absolute top-full right-0 mt-2 w-80 bg-card border rounded-lg shadow-lg z-[91] max-h-96 overflow-y-auto animate-slide-down">
               <div className="p-4 border-b flex items-center justify-between">
                 <h3 className="font-semibold">Notificações</h3>
                 {hasUnread && (
@@ -127,7 +127,9 @@ export function NotificationBell() {
                     <div
                       key={notification.id}
                       className={`p-4 cursor-pointer hover:bg-accent/50 transition-colors ${
-                        !notification.is_read ? "bg-accent/20 font-semibold" : "text-muted-foreground"
+                        !notification.is_read
+                          ? "bg-accent/20 font-semibold"
+                          : "text-muted-foreground"
                       }`}
                       onClick={() => {
                         markAsRead(notification.id);
@@ -137,7 +139,11 @@ export function NotificationBell() {
                       }}
                     >
                       <p className="text-sm">{notification.title}</p>
-                      <p className={`text-xs mt-1 ${!notification.is_read ? 'text-foreground' : ''}`}>
+                      <p
+                        className={`text-xs mt-1 ${
+                          !notification.is_read ? "text-foreground" : ""
+                        }`}
+                      >
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
