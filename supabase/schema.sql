@@ -138,7 +138,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, pg_temp;
 
 DROP TRIGGER IF EXISTS on_insight_created_send_notification ON public.insights;
 CREATE TRIGGER on_insight_created_send_notification
@@ -168,7 +168,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, pg_temp;
 
 DROP TRIGGER IF EXISTS on_post_status_change_send_notification ON public.posts;
 CREATE TRIGGER on_post_status_change_send_notification
@@ -241,7 +241,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, pg_temp;
 
 -- =================================================================
 -- FUNÇÃO CENTRALIZADA PARA NOTIFICAÇÕES DE STATUS DE POST
@@ -291,7 +291,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, pg_temp;
 
 -- =================================================================
 -- REMOVER TRIGGER ANTIGO E ADICIONAR O NOVO E MAIS COMPLETO
@@ -356,7 +356,7 @@ EXCEPTION
     END IF;
     RAISE;
 END;
-$$;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, pg_temp;
 
 
 -- Função para ATUALIZAR um cliente existente
@@ -382,7 +382,7 @@ BEGIN
   SET name = p_name, email = p_email, brand_color = p_brand_color, avatar_url = p_avatar_url
   WHERE user_id = p_user_id;
 END;
-$$;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, pg_temp;
 
 -- =================================================================
 -- ÍNDICE ÚNICO PARA GARANTIR APENAS UM RASCUNHO DE "NOVO POST" POR USUÁRIO

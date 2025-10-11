@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
   }
 
   const supabaseAdmin = createSupabaseAdminClient();
-  const { email, password, name, avatar_url, brand_color } =
-    await request.json();
 
   try {
+    const { email, password, name, avatar_url, brand_color } =
+      await request.json();
     const { data: clientData, error: rpcError } = await supabaseAdmin.rpc(
       "create_client_user",
       {
@@ -81,8 +81,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(clientData);
   } catch (error: any) {
+    const errorMessage = error.message || String(error);
     return NextResponse.json(
-      { error: `Erro ao criar cliente: ${error.message}` },
+      { error: `Erro ao criar cliente: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -97,10 +98,10 @@ export async function PUT(request: NextRequest) {
   }
 
   const supabaseAdmin = createSupabaseAdminClient();
-  const { userId, email, password, name, avatar_url, brand_color } =
-    await request.json();
 
   try {
+    const { userId, email, password, name, avatar_url, brand_color } =
+      await request.json();
     // 1. Atualiza os dados de autenticação do usuário
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
@@ -112,7 +113,9 @@ export async function PUT(request: NextRequest) {
     );
 
     if (authError) {
-      throw authError;
+      // Converte o erro da SDK do Supabase em um objeto Error padrão com uma mensagem limpa
+      const errorMessage = authError.message || JSON.stringify(authError);
+      throw new Error(`Falha na atualização de Auth: ${errorMessage}`);
     }
 
     // 2. Atualiza as tabelas public.users e public.clients
@@ -126,15 +129,17 @@ export async function PUT(request: NextRequest) {
 
     if (rpcError) {
       console.error("Erro RPC após atualização de autenticação:", rpcError);
+      const rpcErrorMessage = rpcError.message || String(rpcError);
       throw new Error(
-        `Dados de autenticação atualizados, mas falha ao atualizar o perfil: ${rpcError.message}`
+        `Dados de autenticação atualizados, mas falha ao atualizar o perfil: ${rpcErrorMessage}`
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    const errorMessage = error.message || String(error);
     return NextResponse.json(
-      { error: `Erro ao atualizar cliente: ${error.message}` },
+      { error: `Erro ao atualizar cliente: ${errorMessage}` },
       { status: 500 }
     );
   }
