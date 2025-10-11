@@ -9,7 +9,19 @@ if (!supabaseUrl || !serviceRoleKey) {
   console.error("Variáveis de ambiente do Supabase não configuradas.");
 }
 
-serve(async (_req) => {
+serve(async (req) => {
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const authorization = req.headers.get("Authorization");
+
+  if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
+    return new Response(JSON.stringify({ error: "Não autorizado" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+    });
+  }
+
+  // Inicializa o cliente Supabase com permissões de administrador
+
   // Inicializa o cliente Supabase com permissões de administrador
   const supabaseAdmin = createClient(supabaseUrl!, serviceRoleKey!);
 
