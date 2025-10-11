@@ -121,7 +121,6 @@ export default function ClientCalendarPage() {
 
   const refreshSpecialDates = useCallback(async () => {
     if (!clientId) return;
-    // CORREÇÃO: Busca datas específicas do cliente OU datas públicas (client_id is null)
     const { data, error } = await supabase
       .from("special_dates")
       .select(`*, client:clients(id, name, brand_color)`)

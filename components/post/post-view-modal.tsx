@@ -208,7 +208,7 @@ export function PostViewModal({
                 <img
                   src={post.media_urls[currentImage]}
                   alt={`Media ${currentImage + 1}`}
-                  className="w-auto h-auto max-w-full max-h-[60vh] object-contain rounded-lg"
+                  className="w-auto h-auto max-w-full max-h-[40vh] object-contain rounded-lg"
                 />
               </div>
               {post.media_urls.length > 1 && (
@@ -330,35 +330,17 @@ export function PostViewModal({
           </div>
         )}
 
-        {/* Aba de Alterações e Comentários */}
-        <Tabs defaultValue="comments" className="pt-4 border-t">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="comments">Comentários</TabsTrigger>
-            <TabsTrigger value="alterations">Alterações</TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
-          </TabsList>
-          <TabsContent value="comments" className="mt-4">
-            <PostComments
-              postId={post.id}
-              comments={normalComments}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelection}
-              onDelete={handleDelete}
-            />
-          </TabsContent>
-          <TabsContent value="alterations" className="mt-4">
-            <AlterationChecklist
-              postId={post.id}
-              requests={alterationRequests}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelection}
-              onDelete={handleDelete}
-            />
-          </TabsContent>
-          <TabsContent value="history" className="mt-4">
-            <PostHistory postId={post.id} />
-          </TabsContent>
-        </Tabs>
+        {/* Alterações e Comentários */}
+        <div className="pt-4 border-t">
+          <AlterationChecklist
+            postId={post.id}
+            requests={alterationRequests}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelection}
+            onDelete={handleDelete}
+          />
+          {/* A seção de PostComments foi removida conforme solicitado */}
+        </div>
       </div>
     </Modal>
   );

@@ -101,6 +101,8 @@ function DashboardContent() {
       return;
     }
 
+    // A lógica de agendamento na Meta foi removida daqui e será gerenciada por um Cron Job.
+
     await supabase.from("edit_history").insert({
       post_id: post.id,
       edited_by: user?.id,
