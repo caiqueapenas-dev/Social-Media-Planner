@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS public.special_dates (
   date DATE NOT NULL,
   description TEXT,
   recurrent BOOLEAN DEFAULT false,
+  category TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

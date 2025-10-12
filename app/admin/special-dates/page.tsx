@@ -34,7 +34,11 @@ export default function SpecialDatesPage() {
     description: "",
     recurrent: false,
     all_clients: false,
+    category: "",
   });
+
+  const [customCategory, setCustomCategory] = useState("");
+  const predefinedCategories = ["Evento", "Aniversário", "Feriado"];
 
   useEffect(() => {
     loadClients();
@@ -50,6 +54,7 @@ export default function SpecialDatesPage() {
         description: "",
         recurrent: false,
         all_clients: false,
+        category: "",
       };
       setFormData(newFormData);
       setIsModalOpen(true);
@@ -101,14 +106,18 @@ export default function SpecialDatesPage() {
 
     if (editingDate) {
       // Logic for editing a single special date
+      const categoryToSave =
+        formData.category === "outra" ? customCategory : formData.category;
+
       const { error } = await supabase
         .from("special_dates")
         .update({
-          client_id: formData.client_ids[0], // Keep single client logic for editing
+          client_id: formData.all_clients ? null : formData.client_ids[0],
           title: formData.title,
           date: formData.date,
           description: formData.description,
           recurrent: formData.recurrent,
+          category: categoryToSave,
         })
         .eq("id", editingDate.id);
 
@@ -119,6 +128,9 @@ export default function SpecialDatesPage() {
       toast.success("Data atualizada!");
     } else {
       // Logic for creating special dates for multiple clients
+      const categoryToSave =
+        formData.category === "outra" ? customCategory : formData.category;
+
       const records = formData.all_clients
         ? [
             {
@@ -127,6 +139,7 @@ export default function SpecialDatesPage() {
               date: formData.date,
               description: formData.description,
               recurrent: formData.recurrent,
+              category: categoryToSave,
             },
           ]
         : formData.client_ids.map((clientId) => ({
@@ -135,6 +148,7 @@ export default function SpecialDatesPage() {
             date: formData.date,
             description: formData.description,
             recurrent: formData.recurrent,
+            category: categoryToSave,
           }));
 
       if (records.length === 0) {
@@ -180,14 +194,21 @@ export default function SpecialDatesPage() {
 
   const handleEdit = (date: SpecialDate) => {
     setEditingDate(date);
+    const isPredefined = predefinedCategories.includes(date.category || "");
     setFormData({
-      client_ids: [date.client_id],
+      client_ids: date.client_id ? [date.client_id] : [],
       title: date.title,
       date: date.date,
       description: date.description || "",
       recurrent: date.recurrent || false,
-      all_clients: false,
+      all_clients: !date.client_id,
+      category: isPredefined ? date.category || "" : "outra",
     });
+    if (!isPredefined) {
+      setCustomCategory(date.category || "");
+    } else {
+      setCustomCategory("");
+    }
     setIsModalOpen(true);
   };
 
@@ -200,7 +221,9 @@ export default function SpecialDatesPage() {
       description: "",
       recurrent: false,
       all_clients: false,
+      category: "",
     });
+    setCustomCategory("");
   };
 
   const today = new Date();
@@ -290,8 +313,11 @@ export default function SpecialDatesPage() {
                     <div className="flex items-start gap-3 flex-1">
                       <Star className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-semibold">{date.title}</h3>
+                          {date.category && (
+                            <Badge variant="outline">{date.category}</Badge>
+                          )}
                           {date.recurrent && (
                             <Badge variant="secondary" className="gap-1">
                               <RefreshCw className="h-3 w-3" /> Anual
@@ -436,18 +462,51 @@ export default function SpecialDatesPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="date">Data *</Label>
-            <Input
-              id="date"
-              type="date"
-              value={formData.date}
-              onChange={(e) =>
-                setFormData({ ...formData, date: e.target.value })
-              }
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Data *</Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.date}
+                onChange={(e) =>
+                  setFormData({ ...formData, date: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Categoria</Label>
+              <Select
+                id="category"
+                value={formData.category}
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                }
+                options={[
+                  { value: "", label: "Selecione..." },
+                  ...predefinedCategories.map((cat) => ({
+                    value: cat,
+                    label: cat,
+                  })),
+                  { value: "outra", label: "Outra..." },
+                ]}
+              />
+            </div>
           </div>
+
+          {formData.category === "outra" && (
+            <div className="space-y-2">
+              <Label htmlFor="custom-category">Nome da Categoria *</Label>
+              <Input
+                id="custom-category"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="Ex: Lançamento"
+                required
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">Descrição (opcional)</Label>

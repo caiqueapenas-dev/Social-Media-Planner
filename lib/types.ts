@@ -92,6 +92,7 @@ export interface SpecialDate {
   date: string;
   description?: string;
   recurrent?: boolean;
+  category?: string;
   created_at: string;
   client?: {
     id: string;
