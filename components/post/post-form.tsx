@@ -81,8 +81,6 @@ export function PostForm({
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
-  const [draftId, setDraftId] = useState<string | null>(null);
-  const [isRestoring, setIsRestoring] = useState(true);
   const [alterationRequests, setAlterationRequests] = useState<PostComment[]>(
     []
   );
@@ -207,87 +205,6 @@ export function PostForm({
     }
   }, [initialData?.id]); // A mágica está aqui: só executa quando o ID muda
 
-  // Load draft on mount
-  useEffect(() => {
-    const loadDraft = async () => {
-      if (!user) return;
-
-      const { data: draft } = await supabase
-        .from("drafts")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("post_id", initialData?.id || null)
-        .maybeSingle();
-
-      if (draft) {
-        if (
-          window.confirm(
-            "Encontramos um rascunho não salvo. Deseja restaurá-lo?"
-          )
-        ) {
-          setFormData(draft.form_data.formData);
-          setMediaPreviews(draft.data.mediaPreviews);
-          setDraftId(draft.id);
-        } else {
-          // User chose not to restore, so delete the draft
-          await supabase.from("drafts").delete().eq("id", draft.id);
-        }
-      }
-      setIsRestoring(false);
-    };
-
-    loadDraft();
-  }, [user, initialData]);
-
-  // Auto-save logic
-  useEffect(() => {
-    if (isRestoring || !user) return;
-
-    const saveDraft = async () => {
-      if (!onDirtyChange) return; // Only save if form is dirty
-
-      const draftData = {
-        user_id: user.id,
-        post_id: initialData?.id || null,
-        data: { formData, mediaPreviews },
-      };
-
-      const { data, error } = await supabase
-        .from("drafts")
-        .upsert(draftData, { onConflict: "user_id, post_id" })
-        .select("id")
-        .single();
-
-      if (error && error.code !== "23505") {
-        // Ignora erros de violação de chave única que o upsert deve tratar
-        console.error("Error saving draft:", error);
-      }
-
-      if (data && !draftId) {
-        setDraftId(data.id);
-      }
-    };
-
-    const debouncedSave = setTimeout(saveDraft, 2000); // Save 2 seconds after user stops typing
-    return () => clearTimeout(debouncedSave);
-  }, [formData, mediaPreviews, user, initialData, draftId, isRestoring]);
-
-  const clearDraft = async () => {
-    // Limpa o rascunho atual se ele existir
-    if (draftId) {
-      await supabase.from("drafts").delete().eq("id", draftId);
-      setDraftId(null);
-    }
-    // Limpa qualquer rascunho antigo de "novo post" que possa ter ficado para trás
-    if (!initialData?.id && user) {
-      await supabase
-        .from("drafts")
-        .delete()
-        .eq("user_id", user.id)
-        .is("post_id", null);
-    }
-  };
-
   const loadTemplatesAndHashtags = async () => {
     if (!formData.client_id || !user) return;
 
@@ -406,8 +323,7 @@ export function PostForm({
     }
   };
 
-  const handleCancel = async () => {
-    await clearDraft();
+  const handleCancel = () => {
     onCancel();
   };
   const removeMedia = (index: number) => {
@@ -549,7 +465,6 @@ export function PostForm({
         }
       }
 
-      await clearDraft();
       onSuccess();
     } catch (error) {
       console.error(error);
