@@ -49,19 +49,18 @@ function CalendarView() {
     null
   );
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
 
   useEffect(() => {
     loadClients();
     loadPosts();
     loadSpecialDates(); // Carrega as datas especiais
 
-    loadSpecialDates();
-
     // Open new post modal if query param is present
     if (searchParams?.get("newPost") === "true") {
       // Esta lógica será substituída pela verificação da URL
     }
-  }, [selectedClientId, currentMonth]);
+  }, [selectedClientId, currentMonth, dateRange]);
 
   // Effect to open a post from URL param
   useEffect(() => {
@@ -192,7 +191,6 @@ function CalendarView() {
   };
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [dateRange, setDateRange] = useState({ from: "", to: "" });
 
   const action = searchParams.get("action");
   const postId = searchParams.get("id");

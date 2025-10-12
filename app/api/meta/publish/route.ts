@@ -272,7 +272,13 @@ export async function POST(request: Request) {
 
     // A API da Meta não suporta agendamento de stories. Eles são publicados imediatamente.
     // Apenas tentamos agendar se for um post futuro.
-    if (postData.post_type !== "story" && scheduledDate > now) {
+    // Stories e posts com aprovação atrasada devem ser publicados imediatamente.
+    // Apenas posts 'approved' futuros são agendados.
+    if (
+      postData.post_type !== "story" &&
+      postData.status === "approved" &&
+      scheduledDate > now
+    ) {
       const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
       const seventyFiveDaysFromNow = new Date(
         now.getTime() + 75 * 24 * 60 * 60 * 1000

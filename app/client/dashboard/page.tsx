@@ -145,11 +145,14 @@ function DashboardContent() {
       return;
     } // Adiciona cada linha como uma solicitação de alteração separada
 
+    // Garante que mesmo uma única linha sem quebra de linha seja tratada como um item
     const alterationItems = alteration
+      .trim()
       .split("\n")
       .filter((line) => line.trim() !== "");
+
     if (alterationItems.length === 0) {
-      toast.error("Por favor, descreva a alteração necessária.");
+      toast.error("A descrição da alteração não pode estar vazia.");
       return;
     }
 

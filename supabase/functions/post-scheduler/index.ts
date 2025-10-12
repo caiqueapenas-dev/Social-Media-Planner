@@ -39,7 +39,7 @@ serve(async (req) => {
         )
       `
       )
-      .eq("status", "approved")
+      .in("status", ["approved", "late_approved"])
       .lte("scheduled_date", new Date().toISOString())
       .gt(
         "scheduled_date",

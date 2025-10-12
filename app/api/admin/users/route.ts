@@ -144,3 +144,48 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+// (Adicione ao final do arquivo, depois da função PUT)
+
+// Função para DELETAR um cliente (DELETE)
+export async function DELETE(request: NextRequest) {
+  try {
+    await authenticateRequest(request);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 401 });
+  }
+
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { userId } = await request.json();
+
+  if (!userId) {
+    return NextResponse.json(
+      { error: "User ID é obrigatório" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(
+      userId
+    );
+
+    if (deleteError) {
+      // Mesmo que a exclusão na autenticação falhe, tentamos limpar as tabelas públicas
+      // para evitar inconsistências, mas retornamos o erro original.
+      console.error("Erro ao deletar usuário no Auth:", deleteError.message);
+      await supabaseAdmin.from("clients").delete().eq("user_id", userId);
+      await supabaseAdmin.from("users").delete().eq("id", userId);
+      throw new Error(deleteError.message);
+    }
+
+    // A exclusão em cascata configurada no banco de dados (ON DELETE CASCADE)
+    // deve remover os registros das tabelas 'users' e 'clients' automaticamente.
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: `Erro ao deletar cliente: ${error.message}` },
+      { status: 500 }
+    );
+  }
+}

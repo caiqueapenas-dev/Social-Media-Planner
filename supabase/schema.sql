@@ -416,9 +416,13 @@ CREATE POLICY "Users can update their own comments"
 ON public.post_comments FOR UPDATE
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own comments"
+CREATE POLICY "Users can delete their own comments or admins can delete any"
 ON public.post_comments FOR DELETE
-USING (auth.uid() = user_id);
+USING (
+  (auth.uid() = user_id)
+  OR
+  ((SELECT role FROM public.users WHERE id = auth.uid()) = 'admin')
+);
 
 -- Habilitar RLS na tabela
 ALTER TABLE public.post_comments ENABLE ROW LEVEL SECURITY;

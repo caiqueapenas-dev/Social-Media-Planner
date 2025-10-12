@@ -108,18 +108,31 @@ export default function ClientsPage() {
     resetForm();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
-
-    const { error } = await supabase.from("clients").delete().eq("id", id);
-
-    if (error) {
-      toast.error("Erro ao excluir cliente");
+  const handleDelete = async (client: Client) => {
+    if (
+      !confirm(
+        `Tem certeza que deseja excluir o cliente "${client.name}"? Esta ação é irreversível e removerá o usuário e todos os seus dados.`
+      )
+    )
       return;
-    }
 
-    deleteClient(id);
-    toast.success("Cliente excluído com sucesso!");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: client.user_id }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error);
+      }
+
+      deleteClient(client.id);
+      toast.success("Cliente excluído com sucesso!");
+    } catch (error: any) {
+      toast.error(`Erro ao excluir cliente: ${error.message}`);
+    }
   };
 
   const handleEdit = (client: Client) => {
@@ -243,7 +256,7 @@ export default function ClientsPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleDelete(client.id)}
+                    onClick={() => handleDelete(client)}
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>

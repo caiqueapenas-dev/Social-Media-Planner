@@ -188,6 +188,10 @@ export function PostForm({
 
     // Carrega as solicitações de alteração quando um post existente é editado
     if (initialData?.id) {
+      // Se o post estiver em refação, muda para pendente ao abrir para edição
+      if (initialData.status === "refactor") {
+        setFormData((prev) => ({ ...prev, status: "pending" }));
+      }
       const fetchAlterationRequests = async () => {
         const { data } = await supabase
           .from("post_comments")
@@ -417,6 +421,10 @@ export function PostForm({
       let savedPost = null;
 
       if (initialData?.id) {
+        // Se o post estiver em refação, muda para pendente ao abrir para edição
+        if (initialData.status === "refactor") {
+          setFormData((prev) => ({ ...prev, status: "pending" }));
+        }
         const { data, error } = await supabase
           .from("posts")
           .update(postData)

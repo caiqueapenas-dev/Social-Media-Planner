@@ -100,14 +100,35 @@ export async function POST(request: Request) {
       return NextResponse.json([]);
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: "Usuário não autenticado." },
-        { status: 401 }
-      );
+    let authorId: string;
+
+    // Se não for uma chamada do cron, pegamos o ID do usuário logado
+    if (authorization !== `Bearer ${cronSecret}`) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        return NextResponse.json(
+          { error: "Usuário não autenticado." },
+          { status: 401 }
+        );
+      }
+      authorId = user.id;
+    } else {
+      // Se for uma chamada do cron, busca o primeiro admin para ser o autor
+      const { data: adminUser, error: adminError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("role", "admin")
+        .limit(1)
+        .single();
+      if (adminError || !adminUser) {
+        return NextResponse.json(
+          { error: "Nenhum usuário administrador encontrado para autoria." },
+          { status: 500 }
+        );
+      }
+      authorId = adminUser.id;
     }
 
     const postsToInsert = combinedData.map((post: any) => {
@@ -126,7 +147,7 @@ export async function POST(request: Request) {
         media_urls: post.children
           ? post.children.data.map((child: any) => child.media_url)
           : [post.media_url],
-        created_by: user.id,
+        created_by: authorId, // Usa o ID do autor definido acima
         meta_post_id: post.id,
       };
     });
