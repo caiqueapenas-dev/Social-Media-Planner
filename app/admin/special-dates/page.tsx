@@ -183,6 +183,31 @@ export default function SpecialDatesPage() {
     });
   };
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const processedDates = specialDates
+    .map((date) => {
+      const specialDateObj = new Date(date.date + "T00:00:00");
+      const currentYear = today.getFullYear();
+
+      if (specialDateObj < today) {
+        if (date.recurrent) {
+          let nextOccurrence = new Date(specialDateObj);
+          nextOccurrence.setFullYear(currentYear);
+
+          if (nextOccurrence < today) {
+            nextOccurrence.setFullYear(currentYear + 1);
+          }
+          return { ...date, date: format(nextOccurrence, "yyyy-MM-dd") };
+        }
+        return null;
+      }
+      return date;
+    })
+    .filter((date): date is SpecialDate => date !== null)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -228,14 +253,16 @@ export default function SpecialDatesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {specialDates.length === 0 ? (
+            {processedDates.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma data comemorativa cadastrada para este filtro.</p>
+                <p>
+                  Nenhuma data comemorativa futura encontrada para este filtro.
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {specialDates.map((date) => (
+                {processedDates.map((date) => (
                   <div
                     key={date.id}
                     className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"

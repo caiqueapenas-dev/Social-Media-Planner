@@ -50,7 +50,7 @@ export default function AdminDashboardImproved() {
     rejected: 3,
     pending: 3,
     approved: 3,
-    specialDates: 3,
+    specialDates: 5,
     lateApproved: 3,
   });
 
@@ -186,6 +186,31 @@ export default function AdminDashboardImproved() {
   );
 
   const lateApprovedPosts = posts.filter((p) => p.status === "late_approved");
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const futureSpecialDates = specialDates
+    .map((date) => {
+      const specialDateObj = new Date(date.date + "T00:00:00");
+      const currentYear = today.getFullYear();
+
+      if (specialDateObj < today) {
+        if (date.recurrent) {
+          let nextOccurrence = new Date(specialDateObj);
+          nextOccurrence.setFullYear(currentYear);
+
+          if (nextOccurrence < today) {
+            nextOccurrence.setFullYear(currentYear + 1);
+          }
+          return { ...date, date: format(nextOccurrence, "yyyy-MM-dd") };
+        }
+        return null; // It's in the past and not recurrent
+      }
+      return date; // It's in the future
+    })
+    .filter((date): date is SpecialDate & { client: Client } => date !== null)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
     <AdminLayout>
@@ -456,13 +481,13 @@ export default function AdminDashboardImproved() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {specialDates.length === 0 ? (
+            {futureSpecialDates.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Nenhuma data especial próxima
               </p>
             ) : (
               <div className="space-y-3">
-                {specialDates
+                {futureSpecialDates
                   .slice(0, visibleItems.specialDates)
                   .map((date) => (
                     <div
@@ -500,7 +525,7 @@ export default function AdminDashboardImproved() {
                   ))}
               </div>
             )}
-            {specialDates.length > visibleItems.specialDates && (
+            {futureSpecialDates.length > visibleItems.specialDates && (
               <div className="text-center mt-4">
                 <Button
                   variant="outline"
