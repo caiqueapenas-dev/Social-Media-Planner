@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   full_name TEXT NOT NULL,
   avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  meta_post_id TEXT UNIQUE
 );
 
 -- Clients table
@@ -38,7 +39,8 @@ CREATE TABLE IF NOT EXISTS public.posts (
   media_urls TEXT[] NOT NULL,
   created_by UUID REFERENCES public.users(id) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  meta_post_id TEXT UNIQUE
 );
 
 -- Caption templates table

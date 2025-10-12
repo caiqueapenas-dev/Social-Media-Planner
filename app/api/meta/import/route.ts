@@ -21,9 +21,7 @@ export async function POST(request: Request) {
   // Busca as credenciais do cliente no DB
   const { data: client, error } = await supabase
     .from("clients")
-    .select(
-      "instagram_business_id, meta_page_access_token, last_import_timestamp"
-    )
+    .select("instagram_business_id, meta_page_access_token")
     .eq("id", clientId)
     .single();
 
@@ -34,11 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const {
-    instagram_business_id,
-    meta_page_access_token,
-    last_import_timestamp,
-  } = client;
+  const { instagram_business_id, meta_page_access_token } = client;
 
   try {
     const fetchAllPages = async (url: string) => {
@@ -70,21 +64,15 @@ export async function POST(request: Request) {
       return allData;
     };
 
-    const sinceFilter = last_import_timestamp
-      ? `&since=${Math.floor(new Date(last_import_timestamp).getTime() / 1000)}`
-      : "";
-
     const mediaFields =
       "id,media_type,media_url,permalink,thumbnail_url,timestamp,caption,children{media_url,media_type}";
-    const mediaUrl = `https://graph.facebook.com/v24.0/${instagram_business_id}/media?fields=${mediaFields}&limit=100&access_token=${meta_page_access_token}${sinceFilter}`;
+    const mediaUrl = `https://graph.facebook.com/v24.0/${instagram_business_id}/media?fields=${mediaFields}&limit=100&access_token=${meta_page_access_token}`;
     const allMedia = await fetchAllPages(mediaUrl);
 
-    const storyFields =
-      "id,media_type,media_url,permalink,thumbnail_url,timestamp,caption";
-    const storiesUrl = `https://graph.facebook.com/v24.0/${instagram_business_id}/stories?fields=${storyFields}&limit=100&access_token=${meta_page_access_token}`;
-    const allStories = await fetchAllPages(storiesUrl);
-
-    const combinedData = [...allMedia, ...allStories];
+    // Filtra para não incluir stories
+    const combinedData = allMedia.filter(
+      (post: any) => post.media_type !== "STORY"
+    );
 
     if (combinedData.length === 0) {
       return NextResponse.json([]);
@@ -128,10 +116,7 @@ export async function POST(request: Request) {
       if (upsertError) throw upsertError;
     }
 
-    await supabase
-      .from("clients")
-      .update({ last_import_timestamp: new Date().toISOString() })
-      .eq("id", clientId);
+    // A atualização do timestamp não é mais necessária
 
     return NextResponse.json(combinedData);
   } catch (err: any) {
