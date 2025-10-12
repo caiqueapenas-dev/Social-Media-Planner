@@ -28,11 +28,16 @@ import Link from "next/link";
 import { Modal } from "@/components/ui/modal";
 import { PostForm } from "@/components/post/post-form";
 import { format } from "date-fns";
+import { useClientsStore } from "@/store/useClientsStore";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 
 export default function AdminDashboardImproved() {
   const supabase = createClient();
   const { user, setUser, setLoading } = useAuthStore();
   const { posts, setPosts } = usePostsStore();
+  const { clients, setClients } = useClientsStore();
+  const [selectedClientId, setSelectedClientId] = useState("");
   const [specialDates, setSpecialDates] = useState<
     (SpecialDate & { client: Client })[]
   >([]);
@@ -62,9 +67,13 @@ export default function AdminDashboardImproved() {
 
   useEffect(() => {
     loadUser();
+    loadClients();
+  }, []);
+
+  useEffect(() => {
     loadPosts();
     loadSpecialDates();
-  }, []);
+  }, [selectedClientId]);
 
   useEffect(() => {
     if (posts.length > 0) {
@@ -93,20 +102,43 @@ export default function AdminDashboardImproved() {
     setLoading(false);
   };
 
-  const loadPosts = async () => {
+  const loadClients = async () => {
     const { data } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("is_active", true)
+      .order("name");
+
+    if (data) {
+      setClients(data);
+    }
+  };
+
+  const loadPosts = async () => {
+    let query = supabase
       .from("posts")
       .select(`*, client:clients(*)`)
       .order("scheduled_date", { ascending: true });
+
+    if (selectedClientId) {
+      query = query.eq("client_id", selectedClientId);
+    }
+
+    const { data } = await query;
     if (data) setPosts(data as unknown as Post[]);
   };
 
   const loadSpecialDates = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("special_dates")
       .select(`*, client:clients(*)`)
-      .order("date", { ascending: true })
-      .limit(5);
+      .order("date", { ascending: true });
+
+    if (selectedClientId) {
+      query = query.or(`client_id.eq.${selectedClientId},client_id.is.null`);
+    }
+
+    const { data } = await query;
     if (data) setSpecialDates(data as any);
   };
 
@@ -171,6 +203,20 @@ export default function AdminDashboardImproved() {
               Novo Post
             </Button>
           </Link>
+        </div>
+
+        {/* Client Filter */}
+        <div className="space-y-2">
+          <Label htmlFor="client-filter">Filtrar por Cliente</Label>
+          <Select
+            id="client-filter"
+            value={selectedClientId}
+            onChange={(e) => setSelectedClientId(e.target.value)}
+            options={[
+              { value: "", label: "Todos os clientes" },
+              ...clients.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
         </div>
 
         {/* Late Approved Posts */}
