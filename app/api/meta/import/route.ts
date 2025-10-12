@@ -2,13 +2,35 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  const supabase = await createClient();
   const cronSecret = process.env.CRON_SECRET;
   const authorization = request.headers.get("Authorization");
 
+  // Allow request if it's from the cron job
   if (authorization !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    // If not from cron, check if it's from an authenticated admin user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    const { data: adminProfile } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (adminProfile?.role !== "admin") {
+      return NextResponse.json(
+        { error: "Acesso negado. Apenas administradores." },
+        { status: 403 }
+      );
+    }
   }
-  const supabase = await createClient();
+
   const { clientId } = await request.json();
 
   if (!clientId) {

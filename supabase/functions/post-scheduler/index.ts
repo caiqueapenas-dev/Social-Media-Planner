@@ -70,7 +70,7 @@ serve(async (req) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            // Adicione um segredo para proteger a API no futuro, se necessário
+            Authorization: `Bearer ${Deno.env.get("CRON_SECRET")!}`,
           },
           body: JSON.stringify({ clientId: post.client_id, postData: post }),
         });

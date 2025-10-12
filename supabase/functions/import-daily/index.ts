@@ -53,11 +53,10 @@ serve(async (req: Request) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${cronSecret}`,
+          Authorization: `Bearer ${Deno.env.get("CRON_SECRET")!}`,
         },
         body: JSON.stringify({ clientId: client.id }),
       });
-
       const result = await response.json();
       if (!response.ok) {
         results.push({
