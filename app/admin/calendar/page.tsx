@@ -4,14 +4,14 @@ import { toast } from "react-hot-toast";
 import { PostViewModal } from "@/components/post/post-view-modal";
 import { Input } from "@/components/ui/input";
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePostsStore } from "@/store/usePostsStore";
 import { useClientsStore } from "@/store/useClientsStore";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
+import Link from "next/link";
 import { PostForm } from "@/components/post/post-form";
 import { AdminCalendarDay } from "@/components/calendar/admin-calendar-day";
 import {
@@ -23,7 +23,7 @@ import {
   isSameMonth,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { Post, SpecialDate } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -33,15 +33,14 @@ import { AdminCalendarList } from "@/components/calendar/admin-calendar-list";
 import { addWeeks, subWeeks } from "date-fns";
 
 function CalendarView() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
   const { posts, setPosts, selectedDate, setSelectedDate } = usePostsStore();
   const { clients, setClients } = useClientsStore();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isFormDirty, setIsFormDirty] = useState(false);
-  const [isPostFormModalOpen, setIsPostFormModalOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [activeView, setActiveView] = useState("monthly");
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
@@ -55,7 +54,7 @@ function CalendarView() {
 
     // Open new post modal if query param is present
     if (searchParams?.get("newPost") === "true") {
-      setIsPostModalOpen(true);
+      // Esta lógica será substituída pela verificação da URL
     }
   }, [selectedClientId, currentMonth]);
 
@@ -183,36 +182,48 @@ function CalendarView() {
   };
 
   const handleDayClick = (day: Date) => {
-    setSelectedDate(day);
-    setSelectedPost(null);
-    setIsPostModalOpen(true);
+    const dateString = format(day, "yyyy-MM-dd");
+    router.push(`/admin/calendar?action=new&date=${dateString}`);
   };
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
+
+  const action = searchParams.get("action");
+  const postId = searchParams.get("id");
+  const dateParam = searchParams.get("date");
+
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [isLoadingPost, setIsLoadingPost] = useState(false);
+
+  useEffect(() => {
+    const fetchPostToEdit = async () => {
+      if (action === "edit" && postId) {
+        setIsLoadingPost(true);
+        const { data } = await supabase
+          .from("posts")
+          .select(`*, client:clients(*)`)
+          .eq("id", postId)
+          .single();
+        if (data) {
+          setEditingPost(data as any);
+        }
+        setIsLoadingPost(false);
+      } else {
+        setEditingPost(null);
+      }
+    };
+
+    fetchPostToEdit();
+  }, [action, postId]);
 
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
     setIsViewModalOpen(true);
   };
 
-  const handleClosePostModal = () => {
-    if (isFormDirty) {
-      if (
-        window.confirm(
-          "Você tem alterações não salvas. Deseja realmente fechar?"
-        )
-      ) {
-        setIsPostModalOpen(false);
-        setSelectedPost(null);
-        setSelectedDate(null);
-        setIsFormDirty(false);
-      }
-    } else {
-      setIsPostModalOpen(false);
-      setSelectedPost(null);
-      setSelectedDate(null);
-    }
+  const handleEditPost = (post: Post) => {
+    router.push(`/admin/calendar?action=edit&id=${post.id}`);
   };
 
   const handleBulkDelete = async (postIds: string[]) => {
@@ -250,6 +261,47 @@ function CalendarView() {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        {/* Post Form Drawer/Panel */}
+        {(action === "new" ||
+          (action === "edit" && (editingPost || isLoadingPost))) && (
+          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-fade-in">
+            <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-background border-l shadow-lg flex flex-col">
+              <div className="p-6 border-b flex items-center justify-between">
+                <h2 className="text-lg font-semibold">
+                  {action === "new" ? "Novo Post" : "Editar Post"}
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.push("/admin/calendar")}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6">
+                {isLoadingPost ? (
+                  <p>Carregando post...</p>
+                ) : (
+                  <PostForm
+                    initialData={
+                      editingPost ||
+                      (dateParam
+                        ? { scheduled_date: `${dateParam}T10:00` }
+                        : undefined)
+                    }
+                    onSuccess={() => {
+                      router.push("/admin/calendar");
+                      loadPosts();
+                    }}
+                    onCancel={() => router.push("/admin/calendar")}
+                    onDirtyChange={setIsFormDirty}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -258,16 +310,11 @@ function CalendarView() {
               Visualize e gerencie posts agendados
             </p>
           </div>
-          <Button
-            onClick={() => {
-              setSelectedDate(null);
-              setSelectedPost(null);
-              setIsPostModalOpen(true);
-            }}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Novo Post
+          <Button asChild className="gap-2">
+            <Link href="/admin/calendar?action=new">
+              <Plus className="h-4 w-4" />
+              Novo Post
+            </Link>
           </Button>
         </div>
 
@@ -420,10 +467,7 @@ function CalendarView() {
                         posts={dayPosts}
                         specialDate={specialDate}
                         onPostClick={handlePostClick}
-                        onEdit={(post) => {
-                          setSelectedPost(post);
-                          setIsPostModalOpen(true);
-                        }}
+                        onEdit={handleEditPost}
                       />
                     </div>
                   );
@@ -438,10 +482,7 @@ function CalendarView() {
               specialDates={specialDates}
               onDayClick={handleDayClick}
               onPostClick={handlePostClick}
-              onEdit={(post) => {
-                setSelectedPost(post);
-                setIsPostModalOpen(true);
-              }}
+              onEdit={handleEditPost}
             />
           </TabsContent>
           {selectedPost && (
@@ -453,48 +494,15 @@ function CalendarView() {
                 setSelectedPost(null);
               }}
               onEdit={() => {
-                setIsViewModalOpen(false);
-                setIsPostModalOpen(true);
+                if (selectedPost) {
+                  setIsViewModalOpen(false);
+                  handleEditPost(selectedPost);
+                }
               }}
             />
           )}
         </Tabs>
       </div>
-
-      {/* Post Modal */}
-      <Modal
-        isOpen={isPostModalOpen}
-        onClose={handleClosePostModal}
-        title={selectedPost ? "Editar Post" : "Novo Post"}
-        size="2xl"
-      >
-        <PostForm
-          initialData={
-            selectedPost
-              ? {
-                  ...selectedPost,
-                  scheduled_date: format(
-                    new Date(selectedPost.scheduled_date),
-                    "yyyy-MM-dd'T'HH:mm"
-                  ),
-                }
-              : selectedDate
-              ? {
-                  scheduled_date: format(selectedDate, "yyyy-MM-dd'T'HH:mm"),
-                }
-              : undefined
-          }
-          onSuccess={() => {
-            setIsFormDirty(false);
-            setIsPostModalOpen(false);
-            setSelectedPost(null);
-            setSelectedDate(null);
-            loadPosts();
-          }}
-          onCancel={handleClosePostModal}
-          onDirtyChange={setIsFormDirty}
-        />
-      </Modal>
     </AdminLayout>
   );
 }
