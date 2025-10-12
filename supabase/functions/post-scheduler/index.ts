@@ -40,11 +40,7 @@ serve(async (req) => {
       `
       )
       .eq("status", "approved")
-      .lte("scheduled_date", new Date().toISOString())
-      .gt(
-        "scheduled_date",
-        new Date(Date.now() - 60 * 60 * 1000).toISOString()
-      ); // Adicionado para buscar posts das últimas 1 hora
+      .lte("scheduled_date", new Date().toISOString());
 
     if (postsError) {
       throw postsError;
