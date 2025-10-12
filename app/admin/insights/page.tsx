@@ -11,10 +11,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, Send, Edit, Trash2 } from "lucide-react";
+import {
+  Lightbulb,
+  Send,
+  Edit,
+  Trash2,
+  History,
+  CheckCircle,
+} from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import toast from "react-hot-toast";
-import { Insight } from "@/lib/types";
+import { Insight, PostComment } from "@/lib/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
+import { Checkbox } from "@/components/ui/checkbox";
+
+type RefactorRequest = PostComment & { post: { id: string; caption: string } };
 
 export default function InsightsPage() {
   const supabase = createClient();
@@ -26,6 +38,9 @@ export default function InsightsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingInsight, setEditingInsight] = useState<Insight | null>(null);
   const [selectedInsights, setSelectedInsights] = useState<string[]>([]);
+  const [refactorRequests, setRefactorRequests] = useState<RefactorRequest[]>(
+    []
+  );
 
   useEffect(() => {
     loadClients();
@@ -41,8 +56,10 @@ export default function InsightsPage() {
   useEffect(() => {
     if (selectedClientId) {
       loadInsights();
+      loadRefactorRequests();
     } else {
-      setInsights([]); // Clear insights if no client is selected
+      setInsights([]);
+      setRefactorRequests([]);
     }
   }, [selectedClientId]);
 
@@ -75,6 +92,20 @@ export default function InsightsPage() {
     const { data } = await query;
     if (data) {
       setInsights(data as unknown as Insight[]);
+    }
+  };
+
+  const loadRefactorRequests = async () => {
+    if (!selectedClientId) return;
+    const { data } = await supabase
+      .from("post_comments")
+      .select(`*, post:posts(id, caption)`)
+      .eq("type", "alteration_request")
+      .eq("post.client_id", selectedClientId)
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      setRefactorRequests(data as any);
     }
   };
 
@@ -150,6 +181,23 @@ export default function InsightsPage() {
     );
   };
 
+  const handleToggleRefactorStatus = async (req: RefactorRequest) => {
+    const newStatus = req.status === "completed" ? "pending" : "completed";
+    const { error } = await supabase
+      .from("post_comments")
+      .update({ status: newStatus })
+      .eq("id", req.id);
+
+    if (error) {
+      toast.error("Erro ao atualizar status.");
+    } else {
+      toast.success("Status da solicitação atualizado!");
+      setRefactorRequests((prev) =>
+        prev.map((r) => (r.id === req.id ? { ...r, status: newStatus } : r))
+      );
+    }
+  };
+
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
   return (
@@ -162,173 +210,253 @@ export default function InsightsPage() {
           </p>
         </div>
 
-        <div className="flex justify-between items-end">
-          <div className="space-y-2 max-w-sm w-full">
-            <Label>Filtrar por Cliente</Label>
-            <Select
-              value={selectedClientId}
-              onChange={(e) => setSelectedClientId(e.target.value)}
-              options={[
-                { value: "", label: "Selecione um cliente para começar" },
-                ...clients.map((c) => ({ value: c.id, label: c.name })),
-              ]}
-            />
+        <Tabs defaultValue="insights">
+          <div className="flex justify-between items-end">
+            <div className="space-y-2 max-w-sm w-full">
+              <Label>Filtrar por Cliente</Label>
+              <Select
+                value={selectedClientId}
+                onChange={(e) => setSelectedClientId(e.target.value)}
+                options={[
+                  { value: "", label: "Selecione um cliente para começar" },
+                  ...clients.map((c) => ({ value: c.id, label: c.name })),
+                ]}
+              />
+            </div>
+            <TabsList>
+              <TabsTrigger value="insights">Insights & Ideias</TabsTrigger>
+              <TabsTrigger value="refactor">Histórico de Refação</TabsTrigger>
+            </TabsList>
           </div>
-          {selectedInsights.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={() => handleDelete(selectedInsights)}
-            >
-              Excluir Selecionados ({selectedInsights.length})
-            </Button>
-          )}
-        </div>
 
-        {selectedClientId && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lightbulb className="h-5 w-5" />
-                {editingInsight
-                  ? `Editando Ideia para ${selectedClient?.name}`
-                  : `Adicionar Nova Ideia para ${selectedClient?.name}`}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <Textarea
-                  value={newInsight}
-                  onChange={(e) => setNewInsight(e.target.value)}
-                  placeholder="Compartilhe uma ideia de conteúdo..."
-                  rows={4}
-                  required
-                />
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="gap-2"
-                  >
-                    <Send className="h-4 w-4" />
-                    {isSubmitting
-                      ? "Enviando..."
-                      : editingInsight
-                      ? "Atualizar Ideia"
-                      : "Enviar Ideia"}
-                  </Button>
-                  {editingInsight && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditingInsight(null);
-                        setNewInsight("");
-                      }}
-                    >
-                      Cancelar Edição
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Ideias</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {insights.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Lightbulb className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>
-                  {selectedClientId
-                    ? "Nenhuma ideia compartilhada para este cliente."
-                    : "Selecione um cliente para ver as ideias."}
-                </p>
+          <TabsContent value="insights" className="space-y-6">
+            {selectedInsights.length > 0 && (
+              <div className="text-right">
+                <Button
+                  variant="destructive"
+                  onClick={() => handleDelete(selectedInsights)}
+                >
+                  Excluir Selecionados ({selectedInsights.length})
+                </Button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {insights.map((insight) => {
-                  const insightTyped = insight as Insight;
-                  const author = insightTyped.user;
-                  const isByAdmin = author?.role === "admin";
-                  const authorName = author?.full_name || "Usuário";
-                  const authorRole = isByAdmin ? "Admin" : "Cliente";
+            )}
+            {selectedClientId && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5" />
+                    {editingInsight
+                      ? `Editando Ideia para ${selectedClient?.name}`
+                      : `Adicionar Nova Ideia para ${selectedClient?.name}`}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <Textarea
+                      value={newInsight}
+                      onChange={(e) => setNewInsight(e.target.value)}
+                      placeholder="Compartilhe uma ideia de conteúdo..."
+                      rows={4}
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="gap-2"
+                      >
+                        <Send className="h-4 w-4" />
+                        {isSubmitting
+                          ? "Enviando..."
+                          : editingInsight
+                          ? "Atualizar Ideia"
+                          : "Enviar Ideia"}
+                      </Button>
+                      {editingInsight && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setEditingInsight(null);
+                            setNewInsight("");
+                          }}
+                        >
+                          Cancelar Edição
+                        </Button>
+                      )}
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
 
-                  return (
-                    <div
-                      key={insightTyped.id}
-                      className={`border rounded-lg p-4 space-y-2 transition-colors ${
-                        selectedInsights.includes(insightTyped.id)
-                          ? "bg-primary/10"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedInsights.includes(insightTyped.id)}
-                            onChange={() => toggleSelection(insightTyped.id)}
-                            className="cursor-pointer"
-                          />
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-cover bg-center"
-                            style={{
-                              backgroundColor: !isByAdmin
-                                ? selectedClient?.brand_color
-                                : "#8b5cf6",
-                              backgroundImage: author?.avatar_url
-                                ? `url(${author.avatar_url})`
-                                : "none",
-                            }}
-                          >
-                            {!author?.avatar_url && (authorName[0] || "?")}
-                          </div>
-                          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Histórico de Ideias</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {insights.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Lightbulb className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>
+                      {selectedClientId
+                        ? "Nenhuma ideia compartilhada para este cliente."
+                        : "Selecione um cliente para ver as ideias."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {insights.map((insight) => {
+                      const insightTyped = insight as Insight;
+                      const author = insightTyped.user;
+                      const isByAdmin = author?.role === "admin";
+                      const authorName = author?.full_name || "Usuário";
+                      const authorRole = isByAdmin ? "Admin" : "Cliente";
+
+                      return (
+                        <div
+                          key={insightTyped.id}
+                          className={`border rounded-lg p-4 space-y-2 transition-colors ${
+                            selectedInsights.includes(insightTyped.id)
+                              ? "bg-primary/10"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm">
-                                {authorName}
-                              </p>
-                              <Badge
-                                variant={isByAdmin ? "default" : "secondary"}
+                              <Checkbox
+                                checked={selectedInsights.includes(
+                                  insightTyped.id
+                                )}
+                                onCheckedChange={() =>
+                                  toggleSelection(insightTyped.id)
+                                }
+                                className="cursor-pointer"
+                              />
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-cover bg-center"
+                                style={{
+                                  backgroundColor: !isByAdmin
+                                    ? selectedClient?.brand_color
+                                    : "#8b5cf6",
+                                  backgroundImage: author?.avatar_url
+                                    ? `url(${author.avatar_url})`
+                                    : "none",
+                                }}
                               >
-                                {authorRole}
-                              </Badge>
+                                {!author?.avatar_url && (authorName[0] || "?")}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-sm">
+                                    {authorName}
+                                  </p>
+                                  <Badge
+                                    variant={
+                                      isByAdmin ? "default" : "secondary"
+                                    }
+                                  >
+                                    {authorRole}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDateTime(insightTyped.created_at)}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDateTime(insightTyped.created_at)}
-                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(insightTyped)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete([insightTyped.id])}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
+                          <p className="text-sm whitespace-pre-wrap pl-12">
+                            {insightTyped.content}
+                          </p>
                         </div>
-                        <div className="flex gap-2">
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="refactor">
+            <Card>
+              <CardHeader>
+                <CardTitle>Histórico de Solicitações de Refação</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {refactorRequests.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>
+                      Nenhuma solicitação de refação encontrada para este
+                      cliente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {refactorRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="border rounded-lg p-4 space-y-3"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 space-y-1">
+                            <p
+                              className={`text-sm ${
+                                req.status === "completed"
+                                  ? "line-through text-muted-foreground"
+                                  : ""
+                              }`}
+                            >
+                              {req.content}
+                            </p>
+                            <Link
+                              href={`/admin/calendar?action=edit&id=${req.post.id}`}
+                              className="text-xs text-blue-500 hover:underline"
+                            >
+                              Ver post: &quot;
+                              {req.post.caption?.substring(0, 50) ||
+                                "Post sem legenda"}
+                              ...&quot;
+                            </Link>
+                          </div>
                           <Button
-                            variant="ghost"
                             size="sm"
-                            onClick={() => handleEdit(insightTyped)}
+                            variant={
+                              req.status === "completed"
+                                ? "secondary"
+                                : "outline"
+                            }
+                            onClick={() => handleToggleRefactorStatus(req)}
+                            className="gap-2"
                           >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete([insightTyped.id])}
-                          >
-                            <Trash2 className="h-4 w-4" />
+                            <CheckCircle className="h-4 w-4" />
+                            {req.status === "completed"
+                              ? "Concluído"
+                              : "Marcar como concluído"}
                           </Button>
                         </div>
                       </div>
-                      <p className="text-sm whitespace-pre-wrap pl-12">
-                        {insightTyped.content}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );
