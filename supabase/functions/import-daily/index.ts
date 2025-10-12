@@ -41,12 +41,19 @@ serve(async (req: Request) => {
       // Usamos a URL da sua aplicação Vercel/Netlify se estiver em produção
       // ou localhost para desenvolvimento
       const apiUrl = Deno.env.get("SITE_URL") || "http://localhost:3000";
+      const cronSecret = Deno.env.get("CRON_SECRET");
+
+      if (!cronSecret) {
+        throw new Error(
+          "A variável de ambiente CRON_SECRET não está definida na Edge Function."
+        );
+      }
+
       const response = await fetch(`${apiUrl}/api/meta/import`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // É crucial ter uma forma de autenticar essa chamada no futuro
-          // Por enquanto, a API de importação não tem proteção, o que é um risco
+          Authorization: `Bearer ${cronSecret}`,
         },
         body: JSON.stringify({ clientId: client.id }),
       });
