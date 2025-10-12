@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useClientsStore } from "@/store/useClientsStore";
@@ -19,7 +19,7 @@ import { SpecialDate } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-export default function SpecialDatesPage() {
+function SpecialDatesView() {
   const searchParams = useSearchParams();
   const supabase = createClient();
   const { clients, setClients } = useClientsStore();
@@ -551,5 +551,12 @@ export default function SpecialDatesPage() {
         </form>
       </Modal>
     </AdminLayout>
+  );
+}
+export default function SpecialDatesPage() {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <SpecialDatesView />
+    </Suspense>
   );
 }
