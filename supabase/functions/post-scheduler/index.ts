@@ -40,7 +40,11 @@ serve(async (req) => {
       `
       )
       .eq("status", "approved")
-      .lte("scheduled_date", new Date().toISOString());
+      .lte("scheduled_date", new Date().toISOString())
+      .gt(
+        "scheduled_date",
+        new Date(Date.now() - 60 * 60 * 1000).toISOString()
+      ); // Adicionado para buscar posts das últimas 1 hora
 
     if (postsError) {
       throw postsError;
@@ -70,7 +74,7 @@ serve(async (req) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${Deno.env.get("CRON_SECRET")!}`,
+            // Adicione um segredo para proteger a API no futuro, se necessário
           },
           body: JSON.stringify({ clientId: post.client_id, postData: post }),
         });
