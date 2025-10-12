@@ -3,6 +3,7 @@ import { toast } from "react-hot-toast";
 
 import { PostViewModal } from "@/components/post/post-view-modal";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -43,6 +44,10 @@ function CalendarView() {
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [activeView, setActiveView] = useState("monthly");
+  const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
+  const [selectedDayForChoice, setSelectedDayForChoice] = useState<Date | null>(
+    null
+  );
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
 
   useEffect(() => {
@@ -182,8 +187,8 @@ function CalendarView() {
   };
 
   const handleDayClick = (day: Date) => {
-    const dateString = format(day, "yyyy-MM-dd");
-    router.push(`/admin/calendar?action=new&date=${dateString}`);
+    setSelectedDayForChoice(day);
+    setIsChoiceModalOpen(true);
   };
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -503,6 +508,46 @@ function CalendarView() {
           )}
         </Tabs>
       </div>
+      <Modal
+        isOpen={isChoiceModalOpen}
+        onClose={() => setIsChoiceModalOpen(false)}
+        title="O que você deseja criar?"
+        size="sm"
+      >
+        <div className="flex flex-col gap-4 pt-4">
+          <Button
+            asChild
+            onClick={() => setIsChoiceModalOpen(false)}
+            className="w-full"
+          >
+            <Link
+              href={`/admin/calendar?action=new&date=${
+                selectedDayForChoice
+                  ? format(selectedDayForChoice, "yyyy-MM-dd")
+                  : ""
+              }`}
+            >
+              Novo Post
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            onClick={() => setIsChoiceModalOpen(false)}
+            className="w-full"
+          >
+            <Link
+              href={`/admin/special-dates?action=new&date=${
+                selectedDayForChoice
+                  ? format(selectedDayForChoice, "yyyy-MM-dd")
+                  : ""
+              }`}
+            >
+              Nova Data Especial
+            </Link>
+          </Button>
+        </div>
+      </Modal>
     </AdminLayout>
   );
 }

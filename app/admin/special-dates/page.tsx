@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useClientsStore } from "@/store/useClientsStore";
 import { AdminLayout } from "@/components/layout/admin-layout";
@@ -19,6 +20,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function SpecialDatesPage() {
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const { clients, setClients } = useClientsStore();
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
@@ -36,6 +38,24 @@ export default function SpecialDatesPage() {
 
   useEffect(() => {
     loadClients();
+
+    const action = searchParams.get("action");
+    const dateParam = searchParams.get("date");
+    if (action === "new") {
+      resetForm();
+      const newFormData = {
+        client_ids: [] as string[],
+        title: "",
+        date: dateParam || "",
+        description: "",
+        recurrent: false,
+        all_clients: false,
+      };
+      setFormData(newFormData);
+      setIsModalOpen(true);
+      // Clean the URL
+      window.history.replaceState({}, "", "/admin/special-dates");
+    }
   }, []);
 
   useEffect(() => {
