@@ -54,13 +54,8 @@ export default function InsightsPage() {
   }, [user]);
 
   useEffect(() => {
-    if (selectedClientId) {
-      loadInsights();
-      loadRefactorRequests();
-    } else {
-      setInsights([]);
-      setRefactorRequests([]);
-    }
+    loadInsights();
+    loadRefactorRequests();
   }, [selectedClientId]);
 
   const loadClients = async () => {
@@ -76,8 +71,6 @@ export default function InsightsPage() {
   };
 
   const loadInsights = async () => {
-    if (!selectedClientId) return;
-
     let query = supabase
       .from("insights")
       .select(
@@ -86,8 +79,11 @@ export default function InsightsPage() {
         user:users!insights_created_by_fkey(id, full_name, email, avatar_url, role)
       `
       )
-      .eq("client_id", selectedClientId)
       .order("created_at", { ascending: false });
+
+    if (selectedClientId) {
+      query = query.eq("client_id", selectedClientId);
+    }
 
     const { data } = await query;
     if (data) {
@@ -96,14 +92,17 @@ export default function InsightsPage() {
   };
 
   const loadRefactorRequests = async () => {
-    if (!selectedClientId) return;
-    const { data } = await supabase
+    let query = supabase
       .from("post_comments")
-      .select(`*, post:posts(id, caption)`)
+      .select(`*, post:posts!inner(id, caption, client_id)`)
       .eq("type", "alteration_request")
-      .eq("post.client_id", selectedClientId)
       .order("created_at", { ascending: false });
 
+    if (selectedClientId) {
+      query = query.eq("post.client_id", selectedClientId);
+    }
+
+    const { data } = await query;
     if (data) {
       setRefactorRequests(data as any);
     }

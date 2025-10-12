@@ -8,21 +8,19 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PlatformButton } from "@/components/ui/platform-button";
 import { PostViewModal } from "@/components/post/post-view-modal";
 import {
   Calendar,
   CheckCircle,
   Clock,
-  XCircle,
   Plus,
-  AlertCircle,
+  AlertTriangle,
   Star,
   RefreshCw,
-  AlertTriangle,
+  FileWarning,
 } from "lucide-react";
 import { PostCard } from "@/components/post/post-card";
-import { formatDateTime, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { Post, SpecialDate, Client } from "@/lib/types";
 import Link from "next/link";
 import { Modal } from "@/components/ui/modal";
@@ -31,6 +29,8 @@ import { format } from "date-fns";
 import { useClientsStore } from "@/store/useClientsStore";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import toast from "react-hot-toast";
 
 export default function AdminDashboardImproved() {
   const supabase = createClient();
@@ -45,25 +45,7 @@ export default function AdminDashboardImproved() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPostFormModalOpen, setIsPostFormModalOpen] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
-  const [visibleItems, setVisibleItems] = useState({
-    refactor: 3,
-    rejected: 3,
-    pending: 3,
-    approved: 3,
-    specialDates: 5,
-    lateApproved: 3,
-  });
-
-  const showMore = (section: keyof typeof visibleItems) => {
-    setVisibleItems((prev) => ({ ...prev, [section]: prev[section] + 5 }));
-  };
-  const [stats, setStats] = useState({
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    refactor: 0,
-    total: 0,
-  });
+  const [publishedCount, setPublishedCount] = useState(0);
 
   useEffect(() => {
     loadUser();
@@ -71,21 +53,24 @@ export default function AdminDashboardImproved() {
   }, []);
 
   useEffect(() => {
+    const fetchPublishedCount = async () => {
+      let query = supabase
+        .from("posts")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "published");
+
+      if (selectedClientId) {
+        query = query.eq("client_id", selectedClientId);
+      }
+
+      const { count } = await query;
+      setPublishedCount(count ?? 0);
+    };
+
+    fetchPublishedCount();
     loadPosts();
     loadSpecialDates();
   }, [selectedClientId]);
-
-  useEffect(() => {
-    if (posts.length > 0) {
-      setStats({
-        pending: posts.filter((p) => p.status === "pending").length,
-        approved: posts.filter((p) => p.status === "approved").length,
-        rejected: posts.filter((p) => p.status === "rejected").length,
-        refactor: posts.filter((p) => p.status === "refactor").length,
-        total: posts.length,
-      });
-    }
-  }, [posts]);
 
   const loadUser = async () => {
     const {
@@ -115,17 +100,26 @@ export default function AdminDashboardImproved() {
   };
 
   const loadPosts = async () => {
-    let query = supabase
-      .from("posts")
-      .select(`*, client:clients(*)`)
-      .order("scheduled_date", { ascending: true });
+    let query = supabase.from("posts").select(`*, client:clients(*)`);
 
     if (selectedClientId) {
       query = query.eq("client_id", selectedClientId);
     }
 
-    const { data } = await query;
-    if (data) setPosts(data as unknown as Post[]);
+    const { data, error } = await query
+      .order("scheduled_date", { ascending: false })
+      .limit(10000);
+
+    if (error) {
+      toast.error("Erro ao carregar os posts.");
+      console.error("Dashboard post fetch error:", error);
+      setPosts([]);
+      return;
+    }
+
+    if (data) {
+      setPosts(data as unknown as Post[]);
+    }
   };
 
   const loadSpecialDates = async () => {
@@ -144,7 +138,6 @@ export default function AdminDashboardImproved() {
 
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
-    // Se o post foi aprovado com atraso ou precisa de refação, abre o formulário de edição direto
     if (post.status === "late_approved" || post.status === "refactor") {
       setIsPostFormModalOpen(true);
     } else {
@@ -165,27 +158,13 @@ export default function AdminDashboardImproved() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: any; label: string }> = {
-      draft: { variant: "secondary", label: "Rascunho" },
-      pending: { variant: "warning", label: "Pendente" },
-      approved: { variant: "success", label: "Aprovado" },
-      rejected: { variant: "destructive", label: "Rejeitado" },
-      published: { variant: "default", label: "Publicado" },
-      refactor: { variant: "outline", label: "Em Refação" }, // Este já estava correto, apenas confirmando.
-    };
-    const config = statusConfig[status] || statusConfig.draft;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
   const refactorPosts = posts.filter((p) => p.status === "refactor");
-  const rejectedPosts = posts.filter((p) => p.status === "rejected");
   const pendingPosts = posts.filter((p) => p.status === "pending");
   const approvedPosts = posts.filter(
     (p) => p.status === "approved" && new Date(p.scheduled_date) > new Date()
   );
-
   const lateApprovedPosts = posts.filter((p) => p.status === "late_approved");
+  const publishedPosts = posts.filter((p) => p.status === "published");
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -205,9 +184,9 @@ export default function AdminDashboardImproved() {
           }
           return { ...date, date: format(nextOccurrence, "yyyy-MM-dd") };
         }
-        return null; // It's in the past and not recurrent
+        return null;
       }
-      return date; // It's in the future
+      return date;
     })
     .filter((date): date is SpecialDate & { client: Client } => date !== null)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -230,7 +209,6 @@ export default function AdminDashboardImproved() {
           </Link>
         </div>
 
-        {/* Client Filter */}
         <div className="space-y-2">
           <Label htmlFor="client-filter">Filtrar por Cliente</Label>
           <Select
@@ -244,299 +222,313 @@ export default function AdminDashboardImproved() {
           />
         </div>
 
-        {/* Late Approved Posts */}
-        {lateApprovedPosts.length > 0 && (
-          <Card className="border-orange-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-500">
-                <AlertTriangle className="h-5 w-5" />
-                Aprovados Atrasados (Publicar Manualmente)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {lateApprovedPosts
-                  .slice(0, visibleItems.lateApproved)
-                  .map((post) => (
-                    <PostCard
-                      key={post.id}
-                      post={post}
-                      onClick={handlePostClick}
-                    />
-                  ))}
-              </div>
-              {lateApprovedPosts.length > visibleItems.lateApproved && (
-                <div className="text-center mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => showMore("lateApproved")}
-                  >
-                    Ver mais
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Posts Pendentes
+                Para Revisão
               </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <FileWarning className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.pending}</div>
+              <div className="text-2xl font-bold">
+                {pendingPosts.length + refactorPosts.length}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Aguardando aprovação
+                Pendentes + Em Refação
               </p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Posts Aprovados
+                Posts Publicados
               </CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.approved}</div>
-              <p className="text-xs text-muted-foreground">
-                Prontos para publicar
-              </p>
+              <div className="text-2xl font-bold">{publishedCount}</div>
+              <p className="text-xs text-muted-foreground">Posts já no ar</p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Posts Rejeitados
+                Clientes Ativos
               </CardTitle>
-              <XCircle className="h-4 w-4 text-muted-foreground" />
+              <FileWarning className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.rejected}</div>
+              <div className="text-2xl font-bold">
+                {clients.filter((c) => c.is_active).length}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Necessitam revisão
+                Total de clientes na plataforma
               </p>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Total de Posts
+                Datas Especiais
               </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Star className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">Todos os posts</p>
+              <div className="text-2xl font-bold">
+                {futureSpecialDates.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Próximos eventos no radar
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {refactorPosts.length > 0 && (
-          <Card className="border-yellow-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-500">
-                <RefreshCw className="h-5 w-5" />
-                Posts para Refação
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {refactorPosts.slice(0, visibleItems.refactor).map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onClick={handlePostClick}
-                  />
-                ))}
-              </div>
-              {refactorPosts.length > visibleItems.refactor && (
-                <div className="text-center mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => showMore("refactor")}
-                  >
-                    Ver mais
-                  </Button>
-                </div>
+        <Tabs defaultValue="refactor" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-3 md:grid-cols-6">
+            <TabsTrigger value="refactor" className="relative">
+              Refação
+              {refactorPosts.length > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0 z-10">
+                  {refactorPosts.length}
+                </Badge>
               )}
-            </CardContent>
-          </Card>
-        )}
-
-        {rejectedPosts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-500" />
-                Próximos Posts Agendados
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {rejectedPosts.slice(0, visibleItems.rejected).map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onClick={handlePostClick}
-                  />
-                ))}
-              </div>
-              {rejectedPosts.length > visibleItems.rejected && (
-                <div className="text-center mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => showMore("rejected")}
-                  >
-                    Ver mais
-                  </Button>
-                </div>
+            </TabsTrigger>
+            <TabsTrigger value="late_approved" className="relative">
+              Atrasados
+              {lateApprovedPosts.length > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0 z-10"
+                >
+                  {lateApprovedPosts.length}
+                </Badge>
               )}
-            </CardContent>
-          </Card>
-        )}
-
-        {pendingPosts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-yellow-500" />
-                Posts Pendentes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingPosts.slice(0, visibleItems.pending).map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onClick={handlePostClick}
-                  />
-                ))}
-              </div>
-              {pendingPosts.length > visibleItems.pending && (
-                <div className="text-center mt-4">
-                  <Button variant="outline" onClick={() => showMore("pending")}>
-                    Ver mais
-                  </Button>
-                </div>
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="relative">
+              Pendentes
+              {pendingPosts.length > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0 z-10">
+                  {pendingPosts.length}
+                </Badge>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </TabsTrigger>
+            <TabsTrigger value="approved" className="relative">
+              Aprovados
+              {approvedPosts.length > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0 z-10">
+                  {approvedPosts.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="published">Publicados</TabsTrigger>
+            <TabsTrigger value="special_dates" className="relative">
+              Datas Especiais
+              {futureSpecialDates.length > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0 z-10">
+                  {futureSpecialDates.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Approved Posts */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              Próximos Posts Aprovados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {approvedPosts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum post aprovado agendado
-              </p>
-            ) : (
-              <>
-                <div className="space-y-3">
-                  {approvedPosts.slice(0, visibleItems.approved).map((post) => (
-                    <PostCard
-                      key={post.id}
-                      post={post}
-                      onClick={handlePostClick}
-                    />
-                  ))}
-                </div>
-
-                {approvedPosts.length > visibleItems.approved && (
-                  <div className="text-center mt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => showMore("approved")}
-                    >
-                      Ver mais
-                    </Button>
+          <TabsContent value="refactor">
+            <Card className="border-yellow-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-500">
+                  <RefreshCw className="h-5 w-5" />
+                  Posts para Refação
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {refactorPosts.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum post para refação.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {refactorPosts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onClick={handlePostClick}
+                      />
+                    ))}
                   </div>
                 )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-yellow-500" />
-              Próximas Datas Especiais
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {futureSpecialDates.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhuma data especial próxima
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {futureSpecialDates
-                  .slice(0, visibleItems.specialDates)
-                  .map((date) => (
-                    <div
-                      key={date.id}
-                      className="flex items-start gap-4 p-4 rounded-lg border"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="font-medium text-sm">
-                            {date.title}
-                          </span>
-                          {date.recurrent && (
-                            <Badge variant="secondary" className="gap-1">
-                              <RefreshCw className="h-3 w-3" /> Anual
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          {date.client ? (
-                            <span
-                              className="text-xs px-2 py-1 rounded-full text-white"
-                              style={{
-                                backgroundColor: date.client.brand_color,
-                              }}
-                            >
-                              {date.client.name}
+          <TabsContent value="late_approved">
+            <Card className="border-orange-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-orange-500">
+                  <AlertTriangle className="h-5 w-5" />
+                  Aprovados Atrasados (Publicar Manualmente)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {lateApprovedPosts.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum post aprovado com atraso.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {lateApprovedPosts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onClick={handlePostClick}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pending">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-yellow-500" />
+                  Posts Pendentes de Aprovação
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingPosts.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum post pendente.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {pendingPosts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onClick={handlePostClick}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="approved">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  Próximos Posts Aprovados
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {approvedPosts.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum post aprovado agendado.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {approvedPosts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onClick={handlePostClick}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="published">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-blue-500" />
+                  Posts Publicados
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {publishedPosts.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum post publicado encontrado.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {publishedPosts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onClick={handlePostClick}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="special_dates">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-yellow-500" />
+                  Próximas Datas Especiais
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {futureSpecialDates.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhuma data especial próxima.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {futureSpecialDates.map((date) => (
+                      <div
+                        key={date.id}
+                        className="flex items-start gap-4 p-4 rounded-lg border"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-medium text-sm">
+                              {date.title}
                             </span>
-                          ) : (
-                            <Badge variant="outline">Público</Badge>
-                          )}
-                          <span>{formatDate(date.date + "T00:00:00")}</span>
+                            {date.recurrent && (
+                              <Badge variant="secondary" className="gap-1">
+                                <RefreshCw className="h-3 w-3" /> Anual
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            {date.client ? (
+                              <span
+                                className="text-xs px-2 py-1 rounded-full text-white"
+                                style={{
+                                  backgroundColor: date.client.brand_color,
+                                }}
+                              >
+                                {date.client.name}
+                              </span>
+                            ) : (
+                              <Badge variant="outline">Público</Badge>
+                            )}
+                            <span>{formatDate(date.date + "T00:00:00")}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-              </div>
-            )}
-            {futureSpecialDates.length > visibleItems.specialDates && (
-              <div className="text-center mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => showMore("specialDates")}
-                >
-                  Ver mais
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {selectedPost && (
