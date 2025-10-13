@@ -158,11 +158,21 @@ export default function AdminDashboardImproved() {
     }
   };
 
+  const [visiblePosts, setVisiblePosts] = useState({
+    refactor: 5,
+    late_approved: 5,
+    pending: 5,
+    approved: 5,
+    published: 5,
+  });
+
+  const showMore = (section: keyof typeof visiblePosts) => {
+    setVisiblePosts((prev) => ({ ...prev, [section]: prev[section] + 5 }));
+  };
+
   const refactorPosts = posts.filter((p) => p.status === "refactor");
   const pendingPosts = posts.filter((p) => p.status === "pending");
-  const approvedPosts = posts.filter(
-    (p) => p.status === "approved" && new Date(p.scheduled_date) > new Date()
-  );
+  const approvedPosts = posts.filter((p) => p.status === "approved");
   const lateApprovedPosts = posts.filter((p) => p.status === "late_approved");
   const publishedPosts = posts.filter((p) => p.status === "published");
 
@@ -315,14 +325,7 @@ export default function AdminDashboardImproved() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="approved" className="relative">
-              Aprovados
-              {approvedPosts.length > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0 z-10">
-                  {approvedPosts.length}
-                </Badge>
-              )}
-            </TabsTrigger>
+            <TabsTrigger value="approved">Aprovados</TabsTrigger>
             <TabsTrigger value="published">Publicados</TabsTrigger>
             <TabsTrigger value="special_dates" className="relative">
               Datas Especiais
@@ -349,13 +352,25 @@ export default function AdminDashboardImproved() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {refactorPosts.map((post) => (
-                      <PostCard
-                        key={post.id}
-                        post={post}
-                        onClick={handlePostClick}
-                      />
-                    ))}
+                    {refactorPosts
+                      .slice(0, visiblePosts.refactor)
+                      .map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onClick={handlePostClick}
+                        />
+                      ))}
+                  </div>
+                )}
+                {refactorPosts.length > visiblePosts.refactor && (
+                  <div className="text-center mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => showMore("refactor")}
+                    >
+                      Ver mais
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -377,13 +392,25 @@ export default function AdminDashboardImproved() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {lateApprovedPosts.map((post) => (
-                      <PostCard
-                        key={post.id}
-                        post={post}
-                        onClick={handlePostClick}
-                      />
-                    ))}
+                    {lateApprovedPosts
+                      .slice(0, visiblePosts.late_approved)
+                      .map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onClick={handlePostClick}
+                        />
+                      ))}
+                  </div>
+                )}
+                {lateApprovedPosts.length > visiblePosts.late_approved && (
+                  <div className="text-center mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => showMore("late_approved")}
+                    >
+                      Ver mais
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -405,13 +432,23 @@ export default function AdminDashboardImproved() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {pendingPosts.map((post) => (
+                    {pendingPosts.slice(0, visiblePosts.pending).map((post) => (
                       <PostCard
                         key={post.id}
                         post={post}
                         onClick={handlePostClick}
                       />
                     ))}
+                  </div>
+                )}
+                {pendingPosts.length > visiblePosts.pending && (
+                  <div className="text-center mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => showMore("pending")}
+                    >
+                      Ver mais
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -433,13 +470,25 @@ export default function AdminDashboardImproved() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {approvedPosts.map((post) => (
-                      <PostCard
-                        key={post.id}
-                        post={post}
-                        onClick={handlePostClick}
-                      />
-                    ))}
+                    {approvedPosts
+                      .slice(0, visiblePosts.approved)
+                      .map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onClick={handlePostClick}
+                        />
+                      ))}
+                  </div>
+                )}
+                {approvedPosts.length > visiblePosts.approved && (
+                  <div className="text-center mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => showMore("approved")}
+                    >
+                      Ver mais
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -461,13 +510,25 @@ export default function AdminDashboardImproved() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {publishedPosts.map((post) => (
-                      <PostCard
-                        key={post.id}
-                        post={post}
-                        onClick={handlePostClick}
-                      />
-                    ))}
+                    {publishedPosts
+                      .slice(0, visiblePosts.published)
+                      .map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onClick={handlePostClick}
+                        />
+                      ))}
+                  </div>
+                )}
+                {publishedPosts.length > visiblePosts.published && (
+                  <div className="text-center mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => showMore("published")}
+                    >
+                      Ver mais
+                    </Button>
                   </div>
                 )}
               </CardContent>

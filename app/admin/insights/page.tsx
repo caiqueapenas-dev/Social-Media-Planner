@@ -190,6 +190,12 @@ export default function InsightsPage() {
     if (error) {
       toast.error("Erro ao atualizar status.");
     } else {
+      if (newStatus === "completed") {
+        await supabase
+          .from("posts")
+          .update({ status: "approved" })
+          .eq("id", req.post.id);
+      }
       toast.success("Status da solicitação atualizado!");
       setRefactorRequests((prev) =>
         prev.map((r) => (r.id === req.id ? { ...r, status: newStatus } : r))
