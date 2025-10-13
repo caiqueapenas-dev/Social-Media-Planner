@@ -91,10 +91,13 @@ export function Combobox({
           <CommandGroup>
             {options.map((option) => (
               <CommandItem
-                key={option.value}
-                value={option.value}
-                onSelect={(currentValue) => {
-                  onChange(currentValue === value ? "" : currentValue);
+                key={option.label}
+                value={option.label}
+                onSelect={(currentLabel) => {
+                  const selectedValue =
+                    options.find((opt) => opt.label === currentLabel)?.value ||
+                    "";
+                  onChange(selectedValue === value ? "" : selectedValue);
                   setOpen(false);
                 }}
               >
