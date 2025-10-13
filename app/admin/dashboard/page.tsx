@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { usePostsStore } from "@/store/usePostsStore";
@@ -38,6 +39,7 @@ export default function AdminDashboardImproved() {
   const { posts, setPosts } = usePostsStore();
   const { clients, setClients } = useClientsStore();
   const [selectedClientId, setSelectedClientId] = useState("");
+  const router = useRouter();
   const [specialDates, setSpecialDates] = useState<
     (SpecialDate & { client: Client })[]
   >([]);
@@ -139,7 +141,7 @@ export default function AdminDashboardImproved() {
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
     if (post.status === "late_approved" || post.status === "refactor") {
-      setIsPostFormModalOpen(true);
+      router.push(`/admin/posts/edit/${post.id}`);
     } else {
       setIsModalOpen(true);
     }
@@ -211,7 +213,7 @@ export default function AdminDashboardImproved() {
               Bem-vindo de volta, {user?.full_name}!
             </p>
           </div>
-          <Link href="/admin/calendar?newPost=true">
+          <Link href="/admin/posts/new">
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
               Novo Post
@@ -607,34 +609,7 @@ export default function AdminDashboardImproved() {
         />
       )}
 
-      <Modal
-        isOpen={isPostFormModalOpen}
-        onClose={handleClosePostFormModal}
-        title={selectedPost ? "Editar Post" : "Novo Post"}
-        size="lg"
-      >
-        <PostForm
-          initialData={
-            selectedPost
-              ? {
-                  ...selectedPost,
-                  scheduled_date: format(
-                    new Date(selectedPost.scheduled_date),
-                    "yyyy-MM-dd'T'HH:mm"
-                  ),
-                }
-              : undefined
-          }
-          onSuccess={() => {
-            setIsFormDirty(false);
-            setIsPostFormModalOpen(false);
-            setSelectedPost(null);
-            loadPosts();
-          }}
-          onCancel={handleClosePostFormModal}
-          onDirtyChange={setIsFormDirty}
-        />
-      </Modal>
+      {/* O modal do formulário foi removido e substituído por páginas dedicadas */}
     </AdminLayout>
   );
 }

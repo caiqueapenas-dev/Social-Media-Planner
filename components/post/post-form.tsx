@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import * as React from "react";
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -67,18 +68,10 @@ import ReactCrop, {
 import "react-image-crop/dist/ReactCrop.css";
 
 interface PostFormProps {
-  onSuccess: () => void;
-  onCancel: () => void;
   initialData?: any;
-  onDirtyChange?: (isDirty: boolean) => void;
 }
 
-export function PostForm({
-  onSuccess,
-  onCancel,
-  initialData,
-  onDirtyChange,
-}: PostFormProps) {
+export function PostForm({ initialData }: PostFormProps) {
   const supabase = createClient();
   const { user } = useAuthStore();
   const { clients } = useClientsStore();
@@ -93,6 +86,8 @@ export function PostForm({
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isHashtagModalOpen, setIsHashtagModalOpen] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const router = useRouter();
   const [alterationRequests, setAlterationRequests] = useState<PostComment[]>(
     []
   );
@@ -143,8 +138,6 @@ export function PostForm({
   }, [mediaPreviews.length, mediaFiles.length]);
 
   useEffect(() => {
-    if (!onDirtyChange) return;
-
     const defaultDate = format(new Date(), "yyyy-MM-dd'T'10:00");
     const initialPlatforms = initialData?.platforms || [
       "instagram",
@@ -165,8 +158,8 @@ export function PostForm({
       initialPlatforms.length !== currentPlatforms.length ||
       !initialPlatforms.every((p: Platform) => currentPlatforms.includes(p));
 
-    onDirtyChange(hasChanged);
-  }, [formData, mediaPreviews, initialData, onDirtyChange]);
+    setIsFormDirty(hasChanged);
+  }, [formData, mediaPreviews, initialData]);
 
   useEffect(() => {
     if (formData.post_type === "story") {
@@ -336,7 +329,7 @@ export function PostForm({
         if (error) throw error;
 
         toast.success("Post excluído com sucesso!");
-        onSuccess(); // Reutiliza o onSuccess para fechar modal e recarregar
+        router.push("/admin/calendar");
       } catch (error) {
         console.error(error);
         toast.error("Erro ao excluir o post.");
@@ -347,7 +340,15 @@ export function PostForm({
   };
 
   const handleCancel = () => {
-    onCancel();
+    if (
+      isFormDirty &&
+      !window.confirm(
+        "Você tem alterações não salvas. Deseja realmente descartá-las e voltar?"
+      )
+    ) {
+      return;
+    }
+    router.push("/admin/calendar");
   };
   const removeMedia = (index: number) => {
     setMediaFiles((prev) => prev.filter((_, i) => i !== index));
@@ -492,7 +493,7 @@ export function PostForm({
         }
       }
 
-      onSuccess();
+      router.push("/admin/calendar");
     } catch (error) {
       console.error(error);
       toast.error("Erro ao salvar post");

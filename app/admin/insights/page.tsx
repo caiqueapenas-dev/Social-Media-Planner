@@ -429,7 +429,7 @@ export default function InsightsPage() {
                               {req.content}
                             </p>
                             <Link
-                              href={`/admin/calendar?action=edit&id=${req.post.id}`}
+                              href={`/admin/posts/edit/${req.post.id}`}
                               className="text-xs text-blue-500 hover:underline"
                             >
                               Ver post: &quot;

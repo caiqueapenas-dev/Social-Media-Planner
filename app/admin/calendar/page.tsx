@@ -197,7 +197,7 @@ function CalendarView() {
   };
 
   const handleEditPost = (post: Post) => {
-    router.push(`/admin/calendar?action=edit&id=${post.id}`);
+    router.push(`/admin/posts/edit/${post.id}`);
   };
 
   const handleBulkDelete = async (postIds: string[]) => {
@@ -442,15 +442,7 @@ function CalendarView() {
             onClick={() => setIsChoiceModalOpen(false)}
             className="w-full"
           >
-            <Link
-              href={`/admin/calendar?action=new&date=${
-                selectedDayForChoice
-                  ? format(selectedDayForChoice, "yyyy-MM-dd")
-                  : ""
-              }`}
-            >
-              Novo Post
-            </Link>
+            <Link href="/admin/posts/new">Novo Post</Link>
           </Button>
           <Button
             asChild

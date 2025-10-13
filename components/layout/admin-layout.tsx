@@ -132,11 +132,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                       ? { scheduled_date: `${dateParam}T10:00` }
                       : undefined)
                   }
-                  onSuccess={() => {
-                    router.back();
-                  }}
-                  onCancel={() => router.back()}
-                  onDirtyChange={setIsFormDirty}
                 />
               )}
             </div>
