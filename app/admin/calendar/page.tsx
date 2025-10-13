@@ -41,7 +41,6 @@ function CalendarView() {
   const { clients, setClients } = useClientsStore();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [isFormDirty, setIsFormDirty] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [activeView, setActiveView] = useState("monthly");
   const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
@@ -192,34 +191,6 @@ function CalendarView() {
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  const action = searchParams.get("action");
-  const postId = searchParams.get("id");
-  const dateParam = searchParams.get("date");
-
-  const [editingPost, setEditingPost] = useState<Post | null>(null);
-  const [isLoadingPost, setIsLoadingPost] = useState(false);
-
-  useEffect(() => {
-    const fetchPostToEdit = async () => {
-      if (action === "edit" && postId) {
-        setIsLoadingPost(true);
-        const { data } = await supabase
-          .from("posts")
-          .select(`*, client:clients(*)`)
-          .eq("id", postId)
-          .single();
-        if (data) {
-          setEditingPost(data as any);
-        }
-        setIsLoadingPost(false);
-      } else {
-        setEditingPost(null);
-      }
-    };
-
-    fetchPostToEdit();
-  }, [action, postId]);
-
   const handlePostClick = (post: Post) => {
     setSelectedPost(post);
     setIsViewModalOpen(true);
@@ -264,47 +235,6 @@ function CalendarView() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Post Form Drawer/Panel */}
-        {(action === "new" ||
-          (action === "edit" && (editingPost || isLoadingPost))) && (
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-fade-in">
-            <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-background border-l shadow-lg flex flex-col">
-              <div className="p-6 border-b flex items-center justify-between">
-                <h2 className="text-lg font-semibold">
-                  {action === "new" ? "Novo Post" : "Editar Post"}
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => router.push("/admin/calendar")}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6">
-                {isLoadingPost ? (
-                  <p>Carregando post...</p>
-                ) : (
-                  <PostForm
-                    initialData={
-                      editingPost ||
-                      (dateParam
-                        ? { scheduled_date: `${dateParam}T10:00` }
-                        : undefined)
-                    }
-                    onSuccess={() => {
-                      router.push("/admin/calendar");
-                      loadPosts();
-                    }}
-                    onCancel={() => router.push("/admin/calendar")}
-                    onDirtyChange={setIsFormDirty}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -313,12 +243,6 @@ function CalendarView() {
               Visualize e gerencie posts agendados
             </p>
           </div>
-          <Button asChild className="gap-2">
-            <Link href="/admin/calendar?action=new">
-              <Plus className="h-4 w-4" />
-              Novo Post
-            </Link>
-          </Button>
         </div>
 
         {/* Client Filter */}

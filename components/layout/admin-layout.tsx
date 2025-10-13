@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Button } from "@/components/ui/button";
@@ -18,12 +18,15 @@ import {
   Moon,
   Lightbulb,
   Star,
-  Download, // Importe o novo ícone
+  Download,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import toast from "react-hot-toast";
 import { GlobalSearch } from "./global-search";
+import { PostForm } from "../post/post-form";
+import { Post } from "@/lib/types";
 
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -35,13 +38,42 @@ const navigation = [
   { name: "Configurações", href: "/admin/settings", icon: Settings },
 ];
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
   const { user, setUser, isLoading, setLoading } = useAuthStore();
   const { theme, setTheme } = useTheme();
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const searchParams = useSearchParams();
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [isLoadingPost, setIsLoadingPost] = useState(false);
+
+  const action = searchParams.get("action");
+  const postId = searchParams.get("id");
+  const dateParam = searchParams.get("date");
+
+  useEffect(() => {
+    const fetchPostToEdit = async () => {
+      if (action === "edit" && postId) {
+        setIsLoadingPost(true);
+        const { data } = await supabase
+          .from("posts")
+          .select(`*, client:clients(*)`)
+          .eq("id", postId)
+          .single();
+        if (data) {
+          setEditingPost(data as any);
+        }
+        setIsLoadingPost(false);
+      } else {
+        setEditingPost(null);
+      }
+    };
+
+    fetchPostToEdit();
+  }, [action, postId]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -77,6 +109,41 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      {(action === "new" ||
+        (action === "edit" && (editingPost || isLoadingPost))) && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-background border-l shadow-lg flex flex-col">
+            <div className="p-6 border-b flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                {action === "new" ? "Novo Post" : "Editar Post"}
+              </h2>
+              <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoadingPost ? (
+                <p>Carregando post...</p>
+              ) : (
+                <PostForm
+                  initialData={
+                    editingPost ||
+                    (dateParam
+                      ? { scheduled_date: `${dateParam}T10:00` }
+                      : undefined)
+                  }
+                  onSuccess={() => {
+                    router.back();
+                  }}
+                  onCancel={() => router.back()}
+                  onDirtyChange={setIsFormDirty}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -101,7 +168,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <X className="h-6 w-6" />
             </button>
           </div>
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="p-4 space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -122,6 +189,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
+          <div className="mt-auto p-4">
+            <Button asChild className="w-full gap-2">
+              <Link href="/admin/calendar?action=new">
+                <Plus className="h-4 w-4" />
+                Novo Post
+              </Link>
+            </Button>
+          </div>
           <div className="p-4 border-t space-y-2">
             {isLoading ? (
               <div className="px-3 py-2 space-y-2">
@@ -180,5 +255,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <main className="p-4 lg:p-8">{children}</main>
       </div>
     </div>
+  );
+}
+
+export function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </Suspense>
   );
 }

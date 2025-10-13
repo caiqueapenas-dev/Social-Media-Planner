@@ -584,8 +584,88 @@ export function PostForm({
         </div>
       </Modal>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left Column */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Coluna Esquerda: Mídia e Agendamento */}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label>Mídia</Label>
+            <div
+              {...getRootProps()}
+              className={cn(
+                "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
+                isDragActive ? "border-primary bg-primary/5" : "border-border"
+              )}
+            >
+              <input {...getInputProps()} disabled={isLoading} />
+              <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Arraste arquivos ou clique para selecionar
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Imagens ou vídeos (máx 50MB)
+              </p>
+            </div>
+          </div>
+
+          {mediaPreviews.length > 0 && (
+            <div className="space-y-2">
+              <Label>
+                Preview ({mediaPreviews.length} de {maxFiles}) - Arraste para
+                reordenar
+              </Label>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={mediaPreviews.map((_, i) => `media-${i}`)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div
+                    className={cn(
+                      "grid gap-2",
+                      mediaPreviews.length > 1
+                        ? "grid-cols-3 md:grid-cols-4"
+                        : "grid-cols-1"
+                    )}
+                  >
+                    {mediaPreviews.map((preview, index) => (
+                      <SortableImage
+                        key={`media-${index}`}
+                        id={`media-${index}`}
+                        url={preview}
+                        index={index}
+                        onRemove={() => !isLoading && removeMedia(index)}
+                        customLabel={
+                          isReel && index === 0
+                            ? "Vídeo"
+                            : isReel && index === 1
+                            ? "Capa"
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          )}
+
+          <DateTimePicker
+            value={formData.scheduled_date}
+            onChange={(value) =>
+              setFormData({ ...formData, scheduled_date: value })
+            }
+            label="Data e Hora de Agendamento"
+            required
+          />
+          {dateError && (
+            <p className="text-sm text-destructive mt-2">{dateError}</p>
+          )}
+        </div>
+
+        {/* Coluna Direita: Informações do Post */}
         <div className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="client_id">Cliente *</Label>
@@ -600,24 +680,20 @@ export function PostForm({
                   className="w-10 h-10 rounded-full object-cover"
                 />
               )}
-              <div className="relative flex-1">
-                <Select
-                  id="client_id"
-                  value={formData.client_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, client_id: e.target.value })
-                  }
-                  options={[
-                    { value: "", label: "Selecione um cliente" },
-                    ...clients.map((c) => ({
-                      value: c.id,
-                      label: `${c.name}`,
-                    })),
-                  ]}
-                  required
-                  disabled={!!initialData || isLoading}
-                />
-              </div>
+              <Select
+                id="client_id"
+                className="flex-1"
+                value={formData.client_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, client_id: e.target.value })
+                }
+                options={[
+                  { value: "", label: "Selecione um cliente" },
+                  ...clients.map((c) => ({ value: c.id, label: c.name })),
+                ]}
+                required
+                disabled={!!initialData || isLoading}
+              />
             </div>
           </div>
 
@@ -636,192 +712,90 @@ export function PostForm({
               required
               disabled={isLoading}
             />
-            {formData.post_type === "carousel" && mediaPreviews.length > 1 && (
-              <p className="text-xs text-muted-foreground">
-                <Sparkles className="h-3 w-3 inline mr-1" />
-                Carrossel detectado automaticamente
-              </p>
-            )}
           </div>
 
-          <div className="space-y-4">
-            {alterationRequests.length > 0 && (
-              <AlterationChecklist
-                postId={initialData.id}
-                requests={alterationRequests}
-                selectedIds={selectedRequestIds}
-                onToggleSelect={(id) =>
-                  setSelectedRequestIds((prev) =>
-                    prev.includes(id)
-                      ? prev.filter((item) => item !== id)
-                      : [...prev, id]
-                  )
-                }
-                onDelete={() => {
-                  /* A exclusão não é necessária aqui */
-                }}
+          <div className="space-y-2">
+            <Label>Plataformas *</Label>
+            <div className="flex gap-2">
+              <PlatformButton
+                platform="instagram"
+                selected={formData.platforms.includes("instagram")}
+                onToggle={() => togglePlatform("instagram")}
+                disabled={isLoading}
               />
-            )}
-            <div>
-              <Label htmlFor="caption">
-                Legenda {formData.post_type !== "story" && "*"}
-              </Label>
-              <div className="relative">
-                <Textarea
-                  id="caption"
-                  value={formData.caption}
-                  onChange={(e) =>
-                    setFormData({ ...formData, caption: e.target.value })
-                  }
-                  rows={8}
-                  placeholder={
-                    formData.post_type === "story"
-                      ? "Stories não possuem legenda."
-                      : "Escreva a legenda do post..."
-                  }
-                  required={formData.post_type !== "story"}
-                  disabled={formData.post_type === "story" || isLoading}
-                />
-                {formData.client_id && formData.post_type !== "story" && (
-                  <div className="absolute bottom-2 right-2 flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsTemplateModalOpen(true)}
-                      disabled={isLoading}
-                    >
-                      Templates
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsHashtagModalOpen(true)}
-                      disabled={isLoading}
-                    >
-                      Hashtags
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <PlatformButton
+                platform="facebook"
+                selected={formData.platforms.includes("facebook")}
+                onToggle={() => togglePlatform("facebook")}
+                disabled={isLoading}
+              />
             </div>
-
-            <div className="space-y-2">
-              <Label>Plataformas *</Label>
-              <div className="flex gap-2">
-                <PlatformButton
-                  platform="instagram"
-                  selected={formData.platforms.includes("instagram")}
-                  onToggle={() => togglePlatform("instagram")}
-                  disabled={isLoading}
-                />
-                <PlatformButton
-                  platform="facebook"
-                  selected={formData.platforms.includes("facebook")}
-                  onToggle={() => togglePlatform("facebook")}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            <DateTimePicker
-              value={formData.scheduled_date}
-              onChange={(value) =>
-                setFormData({ ...formData, scheduled_date: value })
-              }
-              label="Data e Hora de Agendamento"
-              required
-            />
-            {dateError && (
-              <p className="text-sm text-destructive mt-2">{dateError}</p>
-            )}
           </div>
 
-          {/* Right Column */}
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label>Mídia</Label>
-              <div
-                {...getRootProps()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragActive ? "border-primary bg-primary/5" : "border-border"
-                }`}
-              >
-                <input {...getInputProps()} disabled={isLoading} />
-                <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Arraste arquivos aqui ou clique para selecionar
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Imagens ou vídeos até 50MB
-                </p>
-              </div>
-
-              {mediaPreviews.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <Label>
-                    Preview ({mediaPreviews.length}{" "}
-                    {mediaPreviews.length > 1 ? "arquivos" : "arquivo"}) -
-                    Arraste
-                    {isReel && " para definir a capa (2º item) ou reordenar"}
-                    {!isReel && " para reordenar"}
-                  </Label>
-
-                  {mediaPreviews.length > 1 ? (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <SortableContext
-                        items={mediaPreviews.map((_, i) => `media-${i}`)}
-                        strategy={rectSortingStrategy}
-                      >
-                        <div className="grid grid-cols-4 gap-2">
-                          {mediaPreviews.map((preview, index) => (
-                            <SortableImage
-                              key={`media-${index}`}
-                              id={`media-${index}`}
-                              url={preview}
-                              index={index}
-                              onRemove={() => !isLoading && removeMedia(index)}
-                              // Passa o rótulo especial para Reels
-                              customLabel={
-                                isReel && index === 0
-                                  ? "Vídeo Principal"
-                                  : isReel && index === 1
-                                  ? "Capa (Opcional)"
-                                  : undefined
-                              }
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
-                  ) : (
-                    <div className="relative group">
-                      <img
-                        src={mediaPreviews[0]}
-                        alt="Preview"
-                        className="w-full h-auto object-cover rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => !isLoading && removeMedia(0)}
-                        className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
+          <div className="space-y-2">
+            <Label htmlFor="caption">
+              Legenda {formData.post_type !== "story" && "*"}
+            </Label>
+            <div className="relative">
+              <Textarea
+                id="caption"
+                value={formData.caption}
+                onChange={(e) =>
+                  setFormData({ ...formData, caption: e.target.value })
+                }
+                rows={10}
+                placeholder={
+                  formData.post_type === "story"
+                    ? "Stories não possuem legenda."
+                    : "Escreva a legenda do post..."
+                }
+                required={formData.post_type !== "story"}
+                disabled={formData.post_type === "story" || isLoading}
+              />
+              {formData.client_id && formData.post_type !== "story" && (
+                <div className="absolute bottom-2 right-2 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsTemplateModalOpen(true)}
+                    disabled={isLoading}
+                  >
+                    Templates
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsHashtagModalOpen(true)}
+                    disabled={isLoading}
+                  >
+                    Hashtags
+                  </Button>
                 </div>
               )}
             </div>
           </div>
+
+          {alterationRequests.length > 0 && (
+            <AlterationChecklist
+              postId={initialData.id}
+              requests={alterationRequests}
+              selectedIds={selectedRequestIds}
+              onToggleSelect={(id) =>
+                setSelectedRequestIds((prev) =>
+                  prev.includes(id)
+                    ? prev.filter((item) => item !== id)
+                    : [...prev, id]
+                )
+              }
+              onDelete={() => {
+                /* A exclusão não é necessária aqui */
+              }}
+            />
+          )}
         </div>
       </div>
-
       <div className="flex flex-wrap gap-2 pt-6 border-t">
         <Button
           type="button"

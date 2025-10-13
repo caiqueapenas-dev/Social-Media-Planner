@@ -122,7 +122,9 @@ export function PostComments({
                   </div>
                   <div>
                     <p className="text-sm font-medium">
-                      {comment.user?.full_name || "Usuário"}
+                      {comment.user?.full_name ||
+                        comment.user?.email ||
+                        "Usuário"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formatDateTime(comment.created_at)}
