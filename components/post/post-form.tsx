@@ -643,7 +643,7 @@ export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
       </div>
       <div
         className={cn(
-          "bg-muted flex items-center justify-center max-h-80", // Limita a altura máxima da pré-visualização
+          "bg-muted flex items-center justify-center max-h-100", // Limita a altura máxima da pré-visualização
           formData.post_type === "story" || formData.post_type === "reel"
             ? "aspect-[9/16]"
             : "aspect-[4/5]"
@@ -653,7 +653,7 @@ export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
           <img
             src={mediaPreviews[0]}
             alt="Preview"
-            className="w-full h-full object-contain"
+            className="max-w-full max-h-full object-contain"
           />
         ) : (
           <ImageIcon className="h-12 w-12 text-muted-foreground" />
