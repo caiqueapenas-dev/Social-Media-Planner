@@ -69,9 +69,10 @@ import "react-image-crop/dist/ReactCrop.css";
 
 interface PostFormProps {
   initialData?: any;
+  onClientIdChange?: (clientId: string) => void;
 }
 
-export function PostForm({ initialData }: PostFormProps) {
+export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
   const supabase = createClient();
   const { user } = useAuthStore();
   const { clients } = useClientsStore();
@@ -716,9 +717,13 @@ export function PostForm({ initialData }: PostFormProps) {
               <Select
                 id="client_id"
                 value={formData.client_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, client_id: e.target.value })
-                }
+                onChange={(e) => {
+                  const newClientId = e.target.value;
+                  setFormData({ ...formData, client_id: newClientId });
+                  if (onClientIdChange) {
+                    onClientIdChange(newClientId);
+                  }
+                }}
                 options={[
                   { value: "", label: "Selecione um cliente" },
                   ...clients.map((c) => ({

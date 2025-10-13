@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Post } from "@/lib/types";
 import { Input } from "../ui/input";
@@ -18,6 +19,7 @@ export function GlobalSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -124,7 +126,10 @@ export function GlobalSearch() {
           onClose={() => setSelectedPost(null)}
           post={selectedPost}
           onEdit={() => {
-            // Lógica para abrir edição futuramente
+            if (selectedPost) {
+              router.push(`/admin/posts/edit/${selectedPost.id}`);
+              setSelectedPost(null);
+            }
           }}
         />
       )}

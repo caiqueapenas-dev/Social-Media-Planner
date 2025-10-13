@@ -25,15 +25,13 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import toast from "react-hot-toast";
 import { GlobalSearch } from "./global-search";
-import { PostForm } from "../post/post-form";
-import { Post } from "@/lib/types";
 
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Calendário", href: "/admin/calendar", icon: Calendar },
   { name: "Clientes", href: "/admin/clients", icon: Users },
   { name: "Datas Especiais", href: "/admin/special-dates", icon: Star },
-  { name: "Importar", href: "/admin/import", icon: Download }, // Adicione a nova rota aqui
+  { name: "Importar", href: "/admin/import", icon: Download },
   { name: "Insights", href: "/admin/insights", icon: Lightbulb },
   { name: "Configurações", href: "/admin/settings", icon: Settings },
 ];
@@ -45,35 +43,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const { user, setUser, isLoading, setLoading } = useAuthStore();
   const { theme, setTheme } = useTheme();
-  const [isFormDirty, setIsFormDirty] = useState(false);
-  const searchParams = useSearchParams();
-  const [editingPost, setEditingPost] = useState<Post | null>(null);
-  const [isLoadingPost, setIsLoadingPost] = useState(false);
-
-  const action = searchParams.get("action");
-  const postId = searchParams.get("id");
-  const dateParam = searchParams.get("date");
-
-  useEffect(() => {
-    const fetchPostToEdit = async () => {
-      if (action === "edit" && postId) {
-        setIsLoadingPost(true);
-        const { data } = await supabase
-          .from("posts")
-          .select(`*, client:clients(*)`)
-          .eq("id", postId)
-          .single();
-        if (data) {
-          setEditingPost(data as any);
-        }
-        setIsLoadingPost(false);
-      } else {
-        setEditingPost(null);
-      }
-    };
-
-    fetchPostToEdit();
-  }, [action, postId]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -109,36 +78,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {(action === "new" ||
-        (action === "edit" && (editingPost || isLoadingPost))) && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-fade-in">
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-background border-l shadow-lg flex flex-col">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                {action === "new" ? "Novo Post" : "Editar Post"}
-              </h2>
-              <Button variant="ghost" size="icon" onClick={() => router.back()}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              {isLoadingPost ? (
-                <p>Carregando post...</p>
-              ) : (
-                <PostForm
-                  initialData={
-                    editingPost ||
-                    (dateParam
-                      ? { scheduled_date: `${dateParam}T10:00` }
-                      : undefined)
-                  }
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -186,7 +125,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           </nav>
           <div className="mt-auto p-4">
             <Button asChild className="w-full gap-2">
-              <Link href="/admin/calendar?action=new">
+              <Link href="/admin/posts/new">
                 <Plus className="h-4 w-4" />
                 Novo Post
               </Link>

@@ -603,8 +603,9 @@ export default function AdminDashboardImproved() {
             setSelectedPost(null);
           }}
           onEdit={() => {
-            setIsModalOpen(false);
-            setIsPostFormModalOpen(true);
+            if (selectedPost) {
+              router.push(`/admin/posts/edit/${selectedPost.id}`);
+            }
           }}
         />
       )}
