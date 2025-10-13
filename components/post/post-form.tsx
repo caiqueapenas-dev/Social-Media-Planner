@@ -732,7 +732,7 @@ export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
                   })),
                 ]}
                 required
-                disabled={!!initialData || isLoading}
+                disabled={!!initialData?.id || isLoading}
               />
             </div>
             <div className="space-y-2">
