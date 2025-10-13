@@ -89,7 +89,7 @@ export function DateTimePicker({
         </div>
 
         {showPicker && (
-          <div className="absolute z-10 mt-2 bg-card border rounded-md shadow-lg p-2">
+          <div className="absolute z-50 mt-2 bg-card border rounded-md shadow-lg p-2">
             <DayPicker
               mode="single"
               selected={selectedDate}

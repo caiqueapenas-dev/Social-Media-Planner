@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { PlatformButton } from "@/components/ui/platform-button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { SortableImage } from "@/components/post/sortable-image";
@@ -29,6 +29,9 @@ import {
   ImageIcon,
   Facebook,
   Edit,
+  Video,
+  Library,
+  History,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { uploadToCloudinary } from "@/lib/utils";
@@ -609,10 +612,18 @@ export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
   };
 
   const postTypeOptions = [
-    { value: "photo", label: "Foto" },
-    { value: "carousel", label: "Carrossel" },
-    { value: "reel", label: "Reels" },
-    { value: "story", label: "Story" },
+    {
+      value: "photo",
+      label: "Foto",
+      icon: <ImageIcon className="w-4 h-4" />,
+    },
+    {
+      value: "carousel",
+      label: "Carrossel",
+      icon: <Library className="w-4 h-4" />,
+    },
+    { value: "reel", label: "Reels", icon: <Video className="w-4 h-4" /> },
+    { value: "story", label: "Story", icon: <History className="w-4 h-4" /> },
   ];
 
   const selectedClient = clients.find((c) => c.id === formData.client_id);
@@ -807,25 +818,25 @@ export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
           <div className="md:col-span-3 space-y-6">
             <div className="space-y-2">
               <Label htmlFor="client_id">Compartilhar em *</Label>
-              <Select
-                id="client_id"
+              <Combobox
                 value={formData.client_id}
-                onChange={(e) => {
-                  const newClientId = e.target.value;
+                onChange={(newClientId) => {
                   setFormData({ ...formData, client_id: newClientId });
                   if (onClientIdChange) {
                     onClientIdChange(newClientId);
                   }
                 }}
                 options={[
-                  { value: "", label: "Selecione um cliente" },
                   ...clients.map((c) => ({
                     value: c.id,
-                    label: `${c.name}`,
+                    label: c.name,
+                    avatarUrl: c.avatar_url || "",
                   })),
                 ]}
-                required
-                disabled={!!initialData?.id || isLoading}
+                placeholder="Selecione um cliente"
+                searchPlaceholder="Buscar cliente..."
+                emptyText="Nenhum cliente encontrado."
+                disabled={(!!initialData && !!initialData.id) || isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -905,17 +916,18 @@ export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
             )}
             <div className="space-y-2">
               <Label htmlFor="post_type">Tipo de Post *</Label>
-              <Select
-                id="post_type"
+              <Combobox
                 value={formData.post_type}
-                onChange={(e) =>
+                onChange={(value) =>
                   setFormData({
                     ...formData,
-                    post_type: e.target.value as PostType,
+                    post_type: value as PostType,
                   })
                 }
                 options={postTypeOptions}
-                required
+                placeholder="Selecione um tipo"
+                searchPlaceholder="Buscar tipo..."
+                emptyText="Nenhum tipo encontrado."
                 disabled={isLoading}
               />
             </div>
