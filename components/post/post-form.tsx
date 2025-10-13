@@ -578,7 +578,7 @@ export function PostForm({ initialData }: PostFormProps) {
       </div>
       <div
         className={cn(
-          "bg-muted flex items-center justify-center",
+          "bg-muted flex items-center justify-center max-h-80", // Limita a altura máxima da pré-visualização
           formData.post_type === "story" ? "aspect-[9/16]" : "aspect-square"
         )}
       >

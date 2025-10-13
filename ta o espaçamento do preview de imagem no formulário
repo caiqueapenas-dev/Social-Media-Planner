@@ -1,0 +1,82 @@
+[33md46674a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix: remove lógicas de modal do dashboard e corrige erros
+[33mfd83d03[m fix: corrige gatilho de abertura do calendário no seletor de data e hora
+[33mf931da1[m feat: Centraliza modal de post e adiciona botão global
+[33m47a6b2c[m feat(dashboard, insights): Aprimora dashboard com paginação, aprovação automática e filtros
+[33m93d2b0e[m feat: Refatora dashboard com abas e corrige layout do calendário
+[33m05bddf5[m vercel upload 2
+[33mb65f29b[m vercel upload
+[33m12446a3[m feat(core): Implementar exclusão de usuário e corrigir bugs críticos
+[33me646f78[m correção na route.ts da api da meta
+[33m9062f53[m Reverte arquivo post-scheduler/index.ts para o estado do commit e6851e2
+[33mdccdde0[m ?fkcron
+[33mf8722a4[m fix: ajusta cronjob para publicar todos os posts aprovados com data passada
+[33m63bc86c[m feat: adiciona categorias para datas especiais
+[33m89fd8a6[m feat: adiciona modal de escolha para criação no calendário
+[33me086640[m feat: adiciona aba de histórico de refação em insights
+[33m3e62327[m feat: altera lógica de importação para usar upsert e ignorar stories
+[33m4eb4800[m fix: adiciona cabeçalho de autorização ao cronjob de importação diária
+[33m936c6fa[m fix: importa ícone ausente na página de calendário
+[33m077b27d[m refactor: remove funcionalidade de rascunho automático
+[33mc54b82c[m feat: filtra datas especiais passadas e adiciona paginação
+[33m1677449[m feat: filtro de cliente no dashboard
+[33me6851e2[m cronjobs
+[33mf0a6a36[m Admin pode editar clientes
+[33m3708d68[m implementações
+[33m09342d5[m correções no UI do dash do cliente
+[33mae412fc[m correção na UI do dashboard
+[33m40d5cf7[m correções no UI
+[33mfeb1302[m correções no UI
+[33md81a3c8[m feat: finaliza todas as melhorias de segurança, refatoração e UX
+[33me70191a[m refactor(api): utiliza RPC para gerenciar usuários e remove service key
+[33m6a4b88d[m limpeza de arquivos, correções, UI
+[33m9fed39d[m AAAAH VAMO LANÇAR LOGO FDS!
+[33mfcfa3f9[m feature: cliente pode navegar arrastando dedo
+[33m96024b6[m melhoria na UI do cliente
+[33mf72ce81[m bugfix: modal nao abre + botao fechar modal
+[33medd07f9[m correção de aspas para subir na vercel v5
+[33m461384f[m correção de aspas para subir na vercel v4
+[33m8f26517[m correção de aspas para subir na vercel v3
+[33mbac3ad0[m correção de aspas para subir na vercel v2
+[33m5a2db51[m correção de aspas para subir na vercel
+[33m53029c8[m agora diferencia datas publicas e privadas
+[33mc549009[m melhorias na visao de lista
+[33m1cff8c2[m melhoria nos aprovados atrasados
+[33me481fe8[m melhoria na comunicação entre post aprovado tardiamente
+[33md7af373[m FEATURE: agendados (atrasados)
+[33mffb8296[m ao clicar na notificacao, user é levado ao post
+[33m1cbc49c[m FEATURE: automação de importação de posts com Cron Jobs as 3am
+[33mb2053f5[m UI/UX fix: view de calendário do cliente
+[33md4a02e6[m tag 'todos' na visualização das datas especiais publicas
+[33mcfc77e7[m navegação nas views mensais, semanais e listas
+[33mbad845d[m bug fix: eventos duplicados
+[33m6f2b79c[m troca de GMT para UTC
+[33m8780d1c[m novo tipo de notificacao para aprovação atrasada de posts
+[33mf096136[m admin pode alterar dados de cliente
+[33m7e0f144[m dashboard do cliente collapsou posts. adicao do botao ver mais
+[33mf2266b1[m aumento na paginação de posts de 25 para 100 por call na api
+[33mb3676d6[m calendário do cliente com visao mensal, semanal e lista
+[33m90c9c06[m implementações nas datas especiais
+[33ma9bed79[m nem lembro o que é
+[33m489033c[m acho que ta rolando mas to com sono
+[33m609411d[m[33m ([m[1;32mdev-teste[m[33m)[m integração: GRAPH API vbeta0.5 - renovador de token automático implementado
+[33md4f6ffb[m integração: GRAPH API vbeta0.4 - story implementado
+[33m1269f3a[m integração: GRAPH API vbeta0.3 - reels implementado
+[33m7bdf4f9[m integração: GRAPH API vbeta0.2 - carrossel implementado
+[33m1832ae8[m integração: GRAPH API vbeta0.1
+[33mb0df03f[m desativando campo de legenda ao publicar story
+[33mb8ce0d3[m nao lembro
+[33m7af250f[m buscador inteligente
+[33m8de0cee[m bulk
+[33m7401313[m agora o app tem histórico de alterações
+[33mc924959[m chat ao vivo no comments e alteracoes realtime
+[33mc3eed86[m agora o admin muda login e senha do cliente
+[33me6419be[m 19 alterações estáveis no UX e UI
+[33m776a408[m v3 vercel
+[33m46be981[m v2 vercel
+[33mc600112[m producao vercel
+[33m2df4804[m perto da versão final
+[33m60ac8a8[m super robusto e funcional: bellnotification
+[33m38c4539[m ainda estável SLC!! Mudancas no UI/UX
+[33m9817a4e[m Sólidas implementações. Agora vamos corrigir pequenos bugs
+[33mc1d90e4[m super funcional, integrando alterações finas
+[33m78471b5[m first stable commit
