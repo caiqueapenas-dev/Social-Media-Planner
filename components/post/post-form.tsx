@@ -101,6 +101,70 @@ export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const imgRef = React.useRef<HTMLImageElement>(null);
 
+  const [aspect, setAspect] = useState<number | undefined>(1);
+
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    const newCrop = centerCrop(
+      makeAspectCrop(
+        {
+          unit: "%",
+          width: 90,
+        },
+        aspect || width / height,
+        width,
+        height
+      ),
+      width,
+      height
+    );
+    setCrop(newCrop);
+  };
+
+  useEffect(() => {
+    if (imgRef.current) {
+      onImageLoad({ currentTarget: imgRef.current } as any);
+    }
+  }, [aspect]);
+
+  const handleCropComplete = async () => {
+    if (
+      completedCrop?.width &&
+      completedCrop?.height &&
+      imgRef.current &&
+      editingMedia
+    ) {
+      const canvas = document.createElement("canvas");
+      const scaleX = imgRef.current.naturalWidth / imgRef.current.width;
+      const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
+      canvas.width = completedCrop.width;
+      canvas.height = completedCrop.height;
+      const ctx = canvas.getContext("2d");
+
+      if (ctx) {
+        ctx.drawImage(
+          imgRef.current,
+          completedCrop.x * scaleX,
+          completedCrop.y * scaleY,
+          completedCrop.width * scaleX,
+          completedCrop.height * scaleY,
+          0,
+          0,
+          completedCrop.width,
+          completedCrop.height
+        );
+
+        const base64Image = canvas.toDataURL("image/jpeg");
+        const newMediaPreviews = [...mediaPreviews];
+        newMediaPreviews[editingMedia.index] = base64Image;
+        setMediaPreviews(newMediaPreviews);
+        toast.success("Corte aplicado!");
+      } else {
+        toast.error("Não foi possível aplicar o corte.");
+      }
+    }
+    setEditingMedia(null);
+  };
   const [formData, setFormData] = useState({
     client_id: initialData?.client_id || "",
     caption: initialData?.caption || "",
@@ -669,43 +733,70 @@ export function PostForm({ initialData, onClientIdChange }: PostFormProps) {
         title="Editar Foto"
         size="lg"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Ajuste o corte da imagem.
-          </p>
-          <div className="flex justify-center bg-muted p-4 rounded-lg">
-            <ReactCrop
-              crop={crop}
-              onChange={(_, percentCrop) => setCrop(percentCrop)}
-              onComplete={(c) => setCompletedCrop(c)}
-              aspect={1}
-              className="max-h-[60vh]"
-            >
-              <img
-                ref={imgRef}
-                alt="Crop preview"
-                src={editingMedia?.url}
-                onLoad={(e) => {
-                  const { width, height } = e.currentTarget;
-                  const newCrop = centerCrop(
-                    makeAspectCrop({ unit: "%", width: 90 }, 1, width, height),
-                    width,
-                    height
-                  );
-                  setCrop(newCrop);
-                }}
-              />
-            </ReactCrop>
-          </div>
-          <div className="flex justify-end gap-2">
+        <div className="flex gap-6">
+          <div className="w-1/4 space-y-2">
             <Button
               type="button"
-              variant="outline"
-              onClick={() => setEditingMedia(null)}
+              variant={aspect === undefined ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setAspect(undefined)}
             >
-              Cancelar
+              Original
             </Button>
-            <Button type="button">Aplicar</Button>
+            <Button
+              type="button"
+              variant={aspect === 1 ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setAspect(1)}
+            >
+              Quadrado (1:1)
+            </Button>
+            <Button
+              type="button"
+              variant={aspect === 1.91 / 1 ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setAspect(1.91 / 1)}
+            >
+              Horizontal (1.91:1)
+            </Button>
+            <Button
+              type="button"
+              variant={aspect === 4 / 5 ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setAspect(4 / 5)}
+            >
+              Vertical (4:5)
+            </Button>
+          </div>
+          <div className="flex-1 space-y-4">
+            <div className="flex justify-center bg-muted p-4 rounded-lg">
+              <ReactCrop
+                crop={crop}
+                onChange={(_, percentCrop) => setCrop(percentCrop)}
+                onComplete={(c) => setCompletedCrop(c)}
+                aspect={aspect}
+                className="max-h-[60vh]"
+              >
+                <img
+                  ref={imgRef}
+                  alt="Crop preview"
+                  src={editingMedia?.url}
+                  onLoad={onImageLoad}
+                />
+              </ReactCrop>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingMedia(null)}
+              >
+                Cancelar
+              </Button>
+              <Button type="button" onClick={handleCropComplete}>
+                Aplicar
+              </Button>
+            </div>
           </div>
         </div>
       </Modal>
