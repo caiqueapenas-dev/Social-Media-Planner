@@ -2,14 +2,15 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, X } from "lucide-react";
+import { GripVertical, X, Edit } from "lucide-react";
 
 interface SortableImageProps {
   id: string;
   url: string;
   index: number;
   onRemove: () => void;
-  customLabel?: string; // Novo campo
+  onEdit: () => void;
+  customLabel?: string;
 }
 
 export function SortableImage({
@@ -17,6 +18,7 @@ export function SortableImage({
   url,
   index,
   onRemove,
+  onEdit,
   customLabel,
 }: SortableImageProps) {
   const {
@@ -58,13 +60,22 @@ export function SortableImage({
       </div>
 
       {/* Remove button */}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="absolute bottom-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <X className="h-4 w-4" />
-      </button>
+      <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="bg-black/70 text-white rounded-full p-1.5"
+        >
+          <Edit className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="bg-destructive text-destructive-foreground rounded-full p-1.5"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { useState, useEffect, useRef } from "react";
+import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
-import { Label } from "@/components/ui/label";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import { Label } from "./label";
 
 interface DateTimePickerProps {
-  value: string; // ISO string or datetime-local format
+  value: string;
   onChange: (value: string) => void;
   label?: string;
   required?: boolean;
@@ -23,111 +23,86 @@ export function DateTimePicker({
   label = "Data e Hora",
   required,
 }: DateTimePickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [tempDate, setTempDate] = useState(value);
+  const [showPicker, setShowPicker] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedDate = value ? new Date(value) : undefined;
+  const timeValue = value ? format(new Date(value), "HH:mm") : "10:00";
+
+  const handleDayClick = (day: Date | undefined) => {
+    if (!day) return;
+    const [hours, minutes] = timeValue.split(":").map(Number);
+    const newDate = new Date(day);
+    newDate.setHours(hours, minutes);
+    onChange(format(newDate, "yyyy-MM-dd'T'HH:mm"));
+    setShowPicker(false);
+  };
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value;
+    const datePart = value
+      ? format(new Date(value), "yyyy-MM-dd")
+      : format(new Date(), "yyyy-MM-dd");
+    onChange(`${datePart}T${newTime}`);
+  };
 
   useEffect(() => {
-    setTempDate(value);
-  }, [value]);
-
-  const handleSave = () => {
-    onChange(tempDate);
-    setIsOpen(false);
-  };
-
-  const formatDisplay = (dateStr: string) => {
-    if (!dateStr) return "Selecione data e hora";
-
-    try {
-      const date = new Date(dateStr);
-      return format(date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", {
-        locale: ptBR,
-      });
-    } catch {
-      return "Selecione data e hora";
-    }
-  };
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setShowPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" ref={containerRef}>
       {label && (
         <Label>
           {label} {required && <span className="text-destructive">*</span>}
         </Label>
       )}
-
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className={cn(
-          "w-full flex items-center justify-between px-4 py-3 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors text-left",
-          !value && "text-muted-foreground"
-        )}
-      >
-        <span className="flex items-center gap-2">
-          <CalendarIcon className="h-4 w-4" />
-          {formatDisplay(value)}
-        </span>
-      </button>
-
-      <Modal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        title="Agendar Publicação"
-        size="sm"
-      >
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="date-picker-date">Data</Label>
-              <div className="relative">
-                <Input
-                  id="date-picker-date"
-                  type="date"
-                  value={tempDate.split("T")[0] || ""}
-                  onChange={(e) => {
-                    const time = tempDate.split("T")[1] || "12:00";
-                    setTempDate(`${e.target.value}T${time}`);
-                  }}
-                  className="text-base"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="date-picker-time">Horário</Label>
-              <div className="relative">
-                <Input
-                  id="date-picker-time"
-                  type="time"
-                  value={tempDate.split("T")[1]?.slice(0, 5) || ""}
-                  onChange={(e) => {
-                    const date =
-                      tempDate.split("T")[0] ||
-                      format(new Date(), "yyyy-MM-dd");
-                    setTempDate(`${date}T${e.target.value}`);
-                  }}
-                  className="text-base"
-                />
-              </div>
-            </div>
+      <div className="relative">
+        <div className="flex items-center gap-4">
+          <div
+            className="relative flex-1 cursor-pointer"
+            onClick={() => setShowPicker(true)}
+          >
+            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={value ? format(new Date(value), "dd/MM/yyyy") : ""}
+              placeholder="DD/MM/AAAA"
+              className="pl-10 cursor-pointer"
+              readOnly
+            />
           </div>
-
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsOpen(false)}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleSave} className="flex-1">
-              Confirmar
-            </Button>
-          </div>
+          <Input
+            type="time"
+            value={timeValue}
+            onChange={handleTimeChange}
+            className="w-28"
+          />
         </div>
-      </Modal>
+
+        {showPicker && (
+          <div className="absolute z-10 mt-2 bg-card border rounded-md shadow-lg p-2">
+            <DayPicker
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDayClick}
+              locale={ptBR}
+              initialFocus
+              captionLayout="dropdown-buttons"
+              fromYear={new Date().getFullYear()}
+              toYear={new Date().getFullYear() + 5}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
