@@ -1,16 +1,9 @@
-// components/post/post-view-modal.tsx
-
-// components/post/post-view-modal.tsx
-
 "use client";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
 
 import { useState, useEffect } from "react";
-import { Post, PostComment } from "@/lib/types";
+import { Post, PostComment, PostStatus } from "@/lib/types";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { PlatformButton } from "@/components/ui/platform-button";
 import { formatDateTime } from "@/lib/utils";
@@ -23,12 +16,19 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  Save,
+  Loader2,
 } from "lucide-react";
-import { PostComments } from "@/components/post/post-comments";
 import { AlterationChecklist } from "@/components/post/alteration-checklist";
-import { PostHistory } from "@/components/post/post-history";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { StatusBadge, statusConfig } from "@/components/ui/status-badge";
+import { Label } from "../ui/label";
 
 interface PostViewModalProps {
   post: Post;
@@ -57,10 +57,20 @@ export function PostViewModal({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [allComments, setAllComments] = useState<PostComment[]>([]);
   const supabase = createClient();
+  const [isEditingCaption, setIsEditingCaption] = useState(false);
+  const [editedCaption, setEditedCaption] = useState(post.caption);
+  const [isSaving, setIsSaving] = useState(false);
+  const [currentPost, setCurrentPost] = useState(post);
+
+  useEffect(() => {
+    setCurrentPost(post);
+    setEditedCaption(post.caption);
+  }, [post]);
 
   useEffect(() => {
     if (!isOpen) {
-      setCurrentImage(0); // Reset image index on close
+      setCurrentImage(0);
+      setIsEditingCaption(false);
       return;
     }
 
@@ -70,13 +80,10 @@ export function PostViewModal({
         .select(`*, user:users(*)`)
         .eq("post_id", post.id)
         .order("created_at", { ascending: false });
-      if (data) {
-        setAllComments(data as any[]);
-      }
+      if (data) setAllComments(data as any[]);
     };
 
     loadAllComments();
-
     const channel = supabase
       .channel(`post-comments-realtime-${post.id}`)
       .on(
@@ -99,31 +106,22 @@ export function PostViewModal({
   const alterationRequests = allComments.filter(
     (c) => c.type === "alteration_request"
   );
-  const normalComments = allComments.filter(
-    (c) => c.type !== "alteration_request"
-  );
 
   const handleDelete = async (ids: string[]) => {
     if (ids.length === 0) return;
     if (
       window.confirm(`Tem certeza que deseja excluir ${ids.length} item(s)?`)
     ) {
-      const originalComments = [...allComments];
-
-      // Optimistic UI update
-      setAllComments(originalComments.filter((c) => !ids.includes(c.id)));
-      setSelectedIds([]);
-
       const { error } = await supabase
         .from("post_comments")
         .delete()
         .in("id", ids);
-
       if (error) {
-        toast.error("Erro ao excluir. Restaurando itens.");
-        setAllComments(originalComments); // Revert on error
+        toast.error("Erro ao excluir.");
       } else {
         toast.success(`${ids.length} item(s) excluído(s)!`);
+        setAllComments((prev) => prev.filter((c) => !ids.includes(c.id)));
+        setSelectedIds([]);
       }
     }
   };
@@ -134,27 +132,30 @@ export function PostViewModal({
     );
   };
 
-  const nextImage = () => {
+  const nextImage = () =>
     setCurrentImage((prev) => (prev + 1) % post.media_urls.length);
-  };
-
-  const prevImage = () => {
+  const prevImage = () =>
     setCurrentImage(
       (prev) => (prev - 1 + post.media_urls.length) % post.media_urls.length
     );
-  };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: any; label: string }> = {
-      draft: { variant: "secondary", label: "Rascunho" },
-      pending: { variant: "warning", label: "Pendente" },
-      approved: { variant: "success", label: "Aprovado" },
-      rejected: { variant: "destructive", label: "Rejeitado" },
-      published: { variant: "default", label: "Publicado" },
-      refactor: { variant: "outline", label: "Em Refação" },
-    };
-    const config = statusConfig[status] || statusConfig.draft;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+  const handleUpdate = async (updateData: Partial<Post>) => {
+    setIsSaving(true);
+    const { data, error } = await supabase
+      .from("posts")
+      .update(updateData)
+      .eq("id", currentPost.id)
+      .select("*, client:clients(*)")
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao atualizar: ${error.message}`);
+    } else if (data) {
+      toast.success("Post atualizado!");
+      setCurrentPost(data as Post);
+      setIsEditingCaption(false);
+    }
+    setIsSaving(false);
   };
 
   const getTypeLabel = (type: string) => {
@@ -172,46 +173,72 @@ export function PostViewModal({
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {post.client && (
+            {currentPost.client && (
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-cover bg-center"
                 style={{
-                  backgroundColor: post.client.brand_color,
-                  backgroundImage: post.client.avatar_url
-                    ? `url(${post.client.avatar_url})`
+                  backgroundColor: currentPost.client.brand_color,
+                  backgroundImage: currentPost.client.avatar_url
+                    ? `url(${currentPost.client.avatar_url})`
                     : "none",
                 }}
               >
-                {!post.client.avatar_url && post.client.name[0]}
+                {!currentPost.client.avatar_url && currentPost.client.name[0]}
               </div>
             )}
             <div>
-              <h3 className="font-semibold">{post.client?.name}</h3>
-              {getStatusBadge(post.status)}
+              <h3 className="font-semibold">{currentPost.client?.name}</h3>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-left -ml-1"
+                    disabled={isSaving}
+                  >
+                    <StatusBadge status={currentPost.status} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1">
+                  {Object.entries(statusConfig).map(([key, config]) => (
+                    <Button
+                      key={key}
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() =>
+                        handleUpdate({ status: key as PostStatus })
+                      }
+                    >
+                      <StatusBadge status={key as PostStatus} />
+                    </Button>
+                  ))}
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           {showEditButton && onEdit && (
             <Button onClick={onEdit} variant="outline" className="gap-2">
               <Edit className="h-4 w-4" />
-              Editar
+              Edição Completa
             </Button>
           )}
         </div>
 
-        {post.media_urls?.length > 0 && (
+        {currentPost.media_urls?.length > 0 && (
           <div>
             <Label className="flex items-center gap-2 mb-2">
-              <ImageIcon className="h-4 w-4" /> Mídia ({post.media_urls.length})
+              <ImageIcon className="h-4 w-4" /> Mídia (
+              {currentPost.media_urls.length})
             </Label>
             <div className="relative">
               <div className="flex items-center justify-center bg-muted/50 rounded-lg overflow-hidden">
                 <img
-                  src={post.media_urls[currentImage]}
+                  src={currentPost.media_urls[currentImage]}
                   alt={`Media ${currentImage + 1}`}
                   className="w-auto h-auto max-w-full max-h-[40vh] object-contain rounded-lg"
                 />
               </div>
-              {post.media_urls.length > 1 && (
+              {currentPost.media_urls.length > 1 && (
                 <>
                   <Button
                     variant="default"
@@ -230,7 +257,7 @@ export function PostViewModal({
                     <ChevronRight className="h-5 w-5" />
                   </Button>
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-                    {currentImage + 1} / {post.media_urls.length}
+                    {currentImage + 1} / {currentPost.media_urls.length}
                   </div>
                 </>
               )}
@@ -239,22 +266,66 @@ export function PostViewModal({
         )}
 
         <div>
-          <Label className="mb-2 block">Legenda</Label>
-          <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm max-h-40 overflow-y-auto">
-            {post.caption}
+          <div className="flex justify-between items-center mb-2">
+            <Label>Legenda</Label>
+            {!isEditingCaption ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsEditingCaption(true)}
+              >
+                <Edit className="h-3 w-3 mr-2" />
+                Editar
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsEditingCaption(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleUpdate({ caption: editedCaption })}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
+          {isEditingCaption ? (
+            <Textarea
+              value={editedCaption}
+              onChange={(e) => setEditedCaption(e.target.value)}
+              rows={6}
+              className="text-sm"
+            />
+          ) : (
+            <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap text-sm max-h-40 overflow-y-auto">
+              {currentPost.caption}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-muted-foreground">Tipo de Post</Label>
-            <p className="font-medium mt-1">{getTypeLabel(post.post_type)}</p>
+            <Label className="text-muted-foreground">Tipo</Label>
+            <p className="font-medium mt-1">
+              {getTypeLabel(currentPost.post_type)}
+            </p>
           </div>
           <div>
             <Label className="text-muted-foreground">Agendado para</Label>
             <p className="font-medium mt-1 flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              {formatDateTime(post.scheduled_date)}
+              {formatDateTime(currentPost.scheduled_date)}
             </p>
           </div>
         </div>
@@ -264,82 +335,81 @@ export function PostViewModal({
           <div className="flex gap-2">
             <PlatformButton
               platform="instagram"
-              selected={post.platforms.includes("instagram")}
+              selected={currentPost.platforms.includes("instagram")}
               onToggle={() => {}}
               readOnly
             />
             <PlatformButton
               platform="facebook"
-              selected={post.platforms.includes("facebook")}
+              selected={currentPost.platforms.includes("facebook")}
               onToggle={() => {}}
               readOnly
             />
           </div>
         </div>
 
-        {post.status === "pending" && (onApprove || onReject || onRefactor) && (
-          <div className="space-y-4 pt-4 border-t">
-            <div>
-              <h3 className="font-medium mb-2">
-                {onRefactor
-                  ? "Descreva a alteração necessária *"
-                  : "Deixar um Feedback (opcional)"}
-              </h3>
-              <Textarea
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                placeholder={
-                  onRefactor
-                    ? "Ex: Mudar a cor de fundo para azul, ajustar o texto da primeira imagem..."
-                    : "Adicione comentários ou sugestões..."
-                }
-                rows={3}
-              />
+        {currentPost.status === "pending" &&
+          (onApprove || onReject || onRefactor) && (
+            <div className="space-y-4 pt-4 border-t">
+              <div>
+                <h3 className="font-medium mb-2">
+                  {onRefactor
+                    ? "Descreva a alteração necessária *"
+                    : "Deixar um Feedback (opcional)"}
+                </h3>
+                <Textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder={
+                    onRefactor
+                      ? "Ex: Mudar a cor de fundo para azul..."
+                      : "Adicione comentários..."
+                  }
+                  rows={3}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {onApprove && (
+                  <Button
+                    onClick={() => onApprove(currentPost)}
+                    className="gap-2 flex-1"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    Aprovar
+                  </Button>
+                )}
+                {onRefactor && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onRefactor(currentPost, feedback)}
+                    className="gap-2 flex-1"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Solicitar Alteração
+                  </Button>
+                )}
+                {onReject && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => onReject(currentPost, feedback)}
+                    className="gap-2 flex-1"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Reprovar
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {onApprove && (
-                <Button
-                  onClick={() => onApprove(post)}
-                  className="gap-2 flex-1"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  Aprovar
-                </Button>
-              )}
-              {onRefactor && (
-                <Button
-                  variant="outline"
-                  onClick={() => onRefactor(post, feedback)}
-                  className="gap-2 flex-1"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Solicitar Alteração
-                </Button>
-              )}
-              {onReject && (
-                <Button
-                  variant="destructive"
-                  onClick={() => onReject(post, feedback)}
-                  className="gap-2 flex-1"
-                >
-                  <XCircle className="h-4 w-4" />
-                  Reprovar
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Alterações e Comentários */}
         <div className="pt-4 border-t">
           <AlterationChecklist
-            postId={post.id}
+            postId={currentPost.id}
             requests={alterationRequests}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelection}
             onDelete={handleDelete}
           />
-          {/* A seção de PostComments foi removida conforme solicitado */}
         </div>
       </div>
     </Modal>
