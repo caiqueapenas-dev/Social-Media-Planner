@@ -48,10 +48,22 @@ export async function middleware(request: NextRequest) {
   }
 
   // If user is logged in and trying to access login/signup
-  if (user && isPublicRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+  if (user) {
+    const userRole = user.user_metadata.role;
+    const isAtRoot = request.nextUrl.pathname === "/";
+
+    if (isPublicRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname =
+        userRole === "admin" ? "/admin/dashboard" : "/client/dashboard";
+      return NextResponse.redirect(url);
+    }
+    if (isAtRoot) {
+      const url = request.nextUrl.clone();
+      url.pathname =
+        userRole === "admin" ? "/admin/dashboard" : "/client/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
   // Check role-based access
