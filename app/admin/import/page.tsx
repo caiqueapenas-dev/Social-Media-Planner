@@ -86,8 +86,18 @@ export default function ImportPage() {
                 options={[
                   { value: "", label: "Selecione um cliente" },
                   ...clients
-                    .filter((client) => client.instagram_business_id) // Filtra apenas clientes com ID do Instagram configurado
+                    .filter((client) => client.instagram_business_id)
                     .map((c) => ({ value: c.id, label: c.name })),
+                  ...(clients.filter((client) => client.instagram_business_id)
+                    .length === 0
+                    ? [
+                        {
+                          value: "",
+                          label: "Nenhum cliente com integração",
+                          disabled: true,
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </div>
