@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { useClientsStore } from "@/store/useClientsStore";
-import { Select } from "@/components/ui/select";
+import { createClient } from "@/lib/supabase/client";
+import { Client } from "@/lib/types";
+import { Label } from "@/components/ui/label";
+import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,21 +28,24 @@ interface ImportedPost {
 }
 
 export default function ImportPage() {
-  const { clients, setClients } = useClientsStore();
-  const supabase = createClient();
+  const [clients, setClients] = useState<Client[]>([]); // Usando estado local
   const [selectedClientId, setSelectedClientId] = useState("");
   const [importedPosts, setImportedPosts] = useState<ImportedPost[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingClients, setIsLoadingClients] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
     const loadClients = async () => {
+      setIsLoadingClients(true);
       const { data } = await supabase.from("clients").select("*").order("name");
       if (data) {
         setClients(data);
       }
+      setIsLoadingClients(false);
     };
     loadClients();
-  }, [setClients, supabase]);
+  }, [supabase]);
 
   const handleImport = async () => {
     if (!selectedClientId) {
@@ -79,6 +83,10 @@ export default function ImportPage() {
     }
   };
 
+  const clientsWithIntegration = clients.filter(
+    (client) => client.instagram_business_id
+  );
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -91,26 +99,21 @@ export default function ImportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <div className="flex-grow">
-              <Select
+            <div className="flex-grow space-y-2">
+              <Label>Cliente com Integração</Label>
+              <Combobox
                 value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                options={[
-                  { value: "", label: "Selecione um cliente" },
-                  ...clients
-                    .filter((client) => client.instagram_business_id)
-                    .map((c) => ({ value: c.id, label: c.name })),
-                  ...(clients.filter((client) => client.instagram_business_id)
-                    .length === 0
-                    ? [
-                        {
-                          value: "",
-                          label: "Nenhum cliente com integração",
-                          disabled: true,
-                        },
-                      ]
-                    : []),
-                ]}
+                onChange={setSelectedClientId}
+                options={clients
+                  .filter((client) => client.instagram_business_id)
+                  .map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                    avatarUrl: c.avatar_url || undefined,
+                  }))}
+                placeholder="Selecione um cliente"
+                searchPlaceholder="Buscar cliente..."
+                emptyText="Nenhum cliente com integração encontrada."
               />
             </div>
             <Button
