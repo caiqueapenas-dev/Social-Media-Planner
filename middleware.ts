@@ -56,19 +56,15 @@ export async function middleware(request: NextRequest) {
 
   // Check role-based access
   if (user && !isPublicRoute) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    const userRole = user.user_metadata.role;
 
     const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
     const isClientRoute = request.nextUrl.pathname.startsWith("/client");
 
     // Admin trying to access client routes or vice versa
     if (
-      (isAdminRoute && profile?.role !== "admin") ||
-      (isClientRoute && profile?.role !== "client")
+      (isAdminRoute && userRole !== "admin") ||
+      (isClientRoute && userRole !== "client")
     ) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
