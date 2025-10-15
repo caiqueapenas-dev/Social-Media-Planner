@@ -28,6 +28,8 @@ export default function ClientsPage() {
     brand_color: "#8b5cf6",
     avatar_url: "",
     password: "",
+    instagram_business_id: "",
+    meta_page_access_token: "",
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
@@ -60,10 +62,16 @@ export default function ClientsPage() {
       avatarUrl = await uploadToCloudinary(avatarFile);
     }
 
-    const clientData = { ...formData, avatar_url: avatarUrl };
+    // Prepara os dados para o envio, garantindo que campos vazios se tornem nulos
+    const clientData = {
+      ...formData,
+      avatar_url: avatarUrl,
+      instagram_business_id: formData.instagram_business_id || null,
+      meta_page_access_token: formData.meta_page_access_token || null,
+    };
 
     if (editingClient) {
-      // Call the API route to update the user
+      // Chama a API para ATUALIZAR
       const response = await fetch("/api/admin/users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -79,12 +87,10 @@ export default function ClientsPage() {
         return;
       }
 
-      // A atualização da tabela 'clients' agora é feita na API route
-
       updateClient(editingClient.id, { ...editingClient, ...clientData });
       toast.success("Cliente atualizado com sucesso!");
     } else {
-      // Call the API route to create the user
+      // Chama a API para CRIAR
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,7 +111,7 @@ export default function ClientsPage() {
     }
 
     setIsModalOpen(false);
-    resetForm();
+    resetForm(); // A chamada para resetForm() permanece aqui no final
   };
 
   const handleDelete = async (client: Client) => {
@@ -143,6 +149,8 @@ export default function ClientsPage() {
       brand_color: client.brand_color,
       avatar_url: client.avatar_url || "",
       password: "",
+      instagram_business_id: client.instagram_business_id || "",
+      meta_page_access_token: client.meta_page_access_token || "",
     });
     setIsModalOpen(true);
   };
@@ -155,6 +163,8 @@ export default function ClientsPage() {
       brand_color: "#8b5cf6",
       avatar_url: "",
       password: "",
+      instagram_business_id: "",
+      meta_page_access_token: "",
     });
     setAvatarFile(null);
   };
@@ -337,6 +347,39 @@ export default function ClientsPage() {
                 className="flex-1"
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="instagram_business_id">
+              ID de Negócios do Instagram (Opcional)
+            </Label>
+            <Input
+              id="instagram_business_id"
+              value={formData.instagram_business_id}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  instagram_business_id: e.target.value,
+                })
+              }
+              placeholder="Ex: 17841405833839123"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="meta_page_access_token">
+              Token de Acesso da Página (Opcional)
+            </Label>
+            <Input
+              id="meta_page_access_token"
+              type="password"
+              value={formData.meta_page_access_token}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  meta_page_access_token: e.target.value,
+                })
+              }
+              placeholder="Cole o token de acesso de longa duração aqui"
+            />
           </div>
           {editingClient && (
             <div className="space-y-2">
