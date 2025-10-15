@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { useClientsStore } from "@/store/useClientsStore";
 import { Select } from "@/components/ui/select";
@@ -26,10 +27,21 @@ interface ImportedPost {
 }
 
 export default function ImportPage() {
-  const { clients } = useClientsStore();
+  const { clients, setClients } = useClientsStore();
+  const supabase = createClient();
   const [selectedClientId, setSelectedClientId] = useState("");
   const [importedPosts, setImportedPosts] = useState<ImportedPost[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const loadClients = async () => {
+      const { data } = await supabase.from("clients").select("*").order("name");
+      if (data) {
+        setClients(data);
+      }
+    };
+    loadClients();
+  }, [setClients, supabase]);
 
   const handleImport = async () => {
     if (!selectedClientId) {
