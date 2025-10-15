@@ -15,9 +15,13 @@ import {
   CopyCheck,
   Eye,
   History,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { formatDateTime } from "@/lib/utils";
+import { downloadAndZipPosts } from "@/lib/download";
+import { saveAs } from "file-saver";
 import { BulkApprovalModal } from "@/components/post/bulk-approval-modal";
 import { Post } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -30,6 +34,7 @@ function DashboardContent() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [visiblePosts, setVisiblePosts] = useState({
     pending: 3,
     approved: 3,
@@ -359,67 +364,130 @@ function DashboardContent() {
         </Card>
         {/* Published Posts */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Últimos Posts Publicados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {publishedPosts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum post publicado ainda.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {publishedPosts.slice(0, visiblePosts.published).map((post) => (
-                  <div
-                    key={post.id}
-                    className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
-                    onClick={() => {
-                      setSelectedPost(post);
-                      setIsReviewModalOpen(true);
-                    }}
-                  >
-                    {post.media_urls && post.media_urls.length > 0 && (
-                      <img
-                        src={post.media_urls[0]}
-                        alt="Post preview"
-                        className="w-16 h-16 rounded object-cover"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        {getStatusBadge(post.status)}
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {post.caption}
-                      </p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDateTime(post.scheduled_date)}
-                        </span>
-                        <span className="capitalize">{post.post_type}</span>
-                      </div>
+          <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Últimos Posts Publicados
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setIsDownloading(true);
+                  toast.loading("Preparando mídias para download...");
+                  try {
+                    await downloadAndZipPosts(
+                      publishedPosts,
+                      user?.full_name || "cliente"
+                    );
+                    toast.dismiss();
+                    toast.success("Download iniciado!");
+                  } catch (error) {
+                    toast.dismiss();
+                    toast.error("Erro ao preparar o download.");
+                    console.error(error);
+                  } finally {
+                    setIsDownloading(false);
+                  }
+                }}
+                disabled={isDownloading || publishedPosts.length === 0}
+              >
+                {isDownloading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {isDownloading ? "Preparando..." : "Baixar Mídias"}
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                setIsDownloading(true);
+                toast.loading("Preparando mídias para download...");
+                try {
+                  await downloadAndZipPosts(
+                    publishedPosts,
+                    user?.full_name || "cliente"
+                  );
+                  toast.dismiss();
+                  toast.success("Download iniciado!");
+                } catch (error) {
+                  toast.dismiss();
+                  toast.error("Erro ao preparar o download.");
+                  console.error(error);
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
+              disabled={isDownloading || publishedPosts.length === 0}
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isDownloading ? "Preparando..." : "Baixar Mídias"}
+            </Button>
+          </div>
+        </Card>
+        <CardContent>
+          {publishedPosts.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Nenhum post publicado ainda.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {publishedPosts.slice(0, visiblePosts.published).map((post) => (
+                <div
+                  key={post.id}
+                  className="flex items-start gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setSelectedPost(post);
+                    setIsReviewModalOpen(true);
+                  }}
+                >
+                  {post.media_urls && post.media_urls.length > 0 && (
+                    <img
+                      src={post.media_urls[0]}
+                      alt="Post preview"
+                      className="w-16 h-16 rounded object-cover"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {getStatusBadge(post.status)}
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {post.caption}
+                    </p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {formatDateTime(post.scheduled_date)}
+                      </span>
+                      <span className="capitalize">{post.post_type}</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-            {publishedPosts.length > visiblePosts.published && (
-              <div className="text-center mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => showMore("published", 4)}
-                >
-                  Ver mais
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                </div>
+              ))}
+            </div>
+          )}
+          {publishedPosts.length > visiblePosts.published && (
+            <div className="text-center mt-4">
+              <Button
+                variant="outline"
+                onClick={() => showMore("published", 4)}
+              >
+                Ver mais
+              </Button>
+            </div>
+          )}
+        </CardContent>
       </div>
+
       {/* Review Modal */}
       {selectedPost && (
         <PostViewModal // Asserção de não-nulidade para satisfazer o type Post (já está dentro do if selectedPost)

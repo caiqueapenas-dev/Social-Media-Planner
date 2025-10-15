@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { PlatformButton } from "@/components/ui/platform-button";
 import { formatDateTime } from "@/lib/utils";
+import { downloadAndZipPosts } from "@/lib/download";
+import { saveAs } from "file-saver";
 import {
   Edit,
   Calendar,
@@ -23,6 +25,7 @@ import {
   ChevronRight,
   Save,
   Loader2,
+  Download,
 } from "lucide-react";
 import { PostComments } from "@/components/post/post-comments";
 import { AlterationChecklist } from "@/components/post/alteration-checklist";
@@ -77,6 +80,8 @@ export function PostViewModal({
   const [isEditingCaption, setIsEditingCaption] = useState(false);
   const [editedCaption, setEditedCaption] = useState(post.caption);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
   const isAdmin = user?.role === "admin";
 
@@ -305,12 +310,66 @@ export function PostViewModal({
               )}
             </div>
           </div>
-          {showEditButton && onEdit && !isEditingCaption && (
-            <Button onClick={onEdit} variant="outline" className="gap-2">
-              <Edit className="h-4 w-4" />
-              Editar
+          <div className="flex items-center gap-2">
+            {showEditButton && onEdit && !isEditingCaption && (
+              <Button onClick={onEdit} variant="outline" className="gap-2">
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
+            )}
+            <Button
+              onClick={async () => {
+                setIsDownloading(true);
+                toast.loading("Preparando download...");
+                try {
+                  if (
+                    post.post_type === "photo" ||
+                    post.post_type === "story"
+                  ) {
+                    const response = await fetch(post.media_urls[0]);
+                    const blob = await response.blob();
+                    const firstLine =
+                      post.caption?.split("\n")[0] ||
+                      (post.post_type === "story"
+                        ? new Date(post.scheduled_date)
+                            .toTimeString()
+                            .split(" ")[0]
+                            .replace(/:/g, "-")
+                        : "post");
+                    saveAs(blob, `${firstLine}.jpg`);
+                  } else if (post.post_type === "carousel") {
+                    await downloadAndZipPosts(
+                      [post],
+                      post.client?.name || "cliente"
+                    );
+                  }
+                  toast.dismiss();
+                  toast.success("Download iniciado!");
+                } catch (error) {
+                  toast.dismiss();
+                  toast.error("Erro ao baixar a mídia.");
+                  console.error(error);
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
+              variant="outline"
+              className="gap-2"
+              disabled={
+                isDownloading ||
+                !post.media_urls ||
+                post.media_urls.length === 0 ||
+                post.post_type === "reel"
+              }
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {isDownloading ? "Baixando..." : "Baixar"}
             </Button>
-          )}
+          </div>
         </div>
 
         {post.media_urls?.length > 0 && (
