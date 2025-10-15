@@ -62,8 +62,15 @@ export async function POST(request: NextRequest) {
   const supabaseAdmin = createSupabaseAdminClient();
 
   try {
-    const { email, password, name, avatar_url, brand_color } =
-      await request.json();
+    const {
+      email,
+      password,
+      name,
+      avatar_url,
+      brand_color,
+      instagram_business_id,
+      meta_page_access_token,
+    } = await request.json();
     const { data: clientData, error: rpcError } = await supabaseAdmin.rpc(
       "create_client_user",
       {
@@ -72,6 +79,8 @@ export async function POST(request: NextRequest) {
         client_name: name,
         client_brand_color: brand_color,
         client_avatar_url: avatar_url,
+        p_instagram_business_id: instagram_business_id,
+        p_meta_page_access_token: meta_page_access_token,
       }
     );
 
@@ -100,8 +109,16 @@ export async function PUT(request: NextRequest) {
   const supabaseAdmin = createSupabaseAdminClient();
 
   try {
-    const { userId, email, password, name, avatar_url, brand_color } =
-      await request.json();
+    const {
+      userId,
+      email,
+      password,
+      name,
+      avatar_url,
+      brand_color,
+      instagram_business_id,
+      meta_page_access_token,
+    } = await request.json();
     // 1. Atualiza os dados de autenticação do usuário
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
@@ -125,6 +142,8 @@ export async function PUT(request: NextRequest) {
       p_name: name,
       p_avatar_url: avatar_url,
       p_brand_color: brand_color,
+      p_instagram_business_id: instagram_business_id,
+      p_meta_page_access_token: meta_page_access_token,
     });
 
     if (rpcError) {
