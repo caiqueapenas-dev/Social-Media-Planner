@@ -119,6 +119,7 @@ export async function PUT(request: NextRequest) {
       instagram_business_id,
       meta_page_access_token,
     } = await request.json();
+
     // 1. Atualiza os dados de autenticação do usuário
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
@@ -130,7 +131,6 @@ export async function PUT(request: NextRequest) {
     );
 
     if (authError) {
-      // Converte o erro da SDK do Supabase em um objeto Error padrão com uma mensagem limpa
       const errorMessage = authError.message || JSON.stringify(authError);
       throw new Error(`Falha na atualização de Auth: ${errorMessage}`);
     }
@@ -147,7 +147,6 @@ export async function PUT(request: NextRequest) {
     });
 
     if (rpcError) {
-      console.error("Erro RPC após atualização de autenticação:", rpcError);
       const rpcErrorMessage = rpcError.message || String(rpcError);
       throw new Error(
         `Dados de autenticação atualizados, mas falha ao atualizar o perfil: ${rpcErrorMessage}`
@@ -163,7 +162,6 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
-// (Adicione ao final do arquivo, depois da função PUT)
 
 // Função para DELETAR um cliente (DELETE)
 export async function DELETE(request: NextRequest) {
@@ -189,16 +187,11 @@ export async function DELETE(request: NextRequest) {
     );
 
     if (deleteError) {
-      // Mesmo que a exclusão na autenticação falhe, tentamos limpar as tabelas públicas
-      // para evitar inconsistências, mas retornamos o erro original.
       console.error("Erro ao deletar usuário no Auth:", deleteError.message);
       await supabaseAdmin.from("clients").delete().eq("user_id", userId);
       await supabaseAdmin.from("users").delete().eq("id", userId);
       throw new Error(deleteError.message);
     }
-
-    // A exclusão em cascata configurada no banco de dados (ON DELETE CASCADE)
-    // deve remover os registros das tabelas 'users' e 'clients' automaticamente.
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

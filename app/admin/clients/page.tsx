@@ -59,10 +59,14 @@ export default function ClientsPage() {
 
     let avatarUrl = formData.avatar_url;
     if (avatarFile) {
-      avatarUrl = await uploadToCloudinary(avatarFile);
+      try {
+        avatarUrl = await uploadToCloudinary(avatarFile);
+      } catch (error) {
+        toast.error("Erro ao fazer upload do avatar.");
+        return;
+      }
     }
 
-    // Prepara os dados para o envio, garantindo que campos vazios se tornem nulos
     const clientData = {
       ...formData,
       avatar_url: avatarUrl,
@@ -71,7 +75,7 @@ export default function ClientsPage() {
     };
 
     if (editingClient) {
-      // Chama a API para ATUALIZAR
+      // ATUALIZAR CLIENTE
       const response = await fetch("/api/admin/users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -90,7 +94,7 @@ export default function ClientsPage() {
       updateClient(editingClient.id, { ...editingClient, ...clientData });
       toast.success("Cliente atualizado com sucesso!");
     } else {
-      // Chama a API para CRIAR
+      // CRIAR NOVO CLIENTE
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,7 +115,7 @@ export default function ClientsPage() {
     }
 
     setIsModalOpen(false);
-    resetForm(); // A chamada para resetForm() permanece aqui no final
+    resetForm();
   };
 
   const handleDelete = async (client: Client) => {
