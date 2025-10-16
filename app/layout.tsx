@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/providers/theme-provider";
+
 import { PWAInstaller } from "@/components/pwa-installer";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Toaster } from "react-hot-toast";
@@ -11,7 +11,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Social Media Planner",
-  description: "Plataforma completa para gerenciamento de conteúdo de mídias sociais",
+  description:
+    "Plataforma completa para gerenciamento de conteúdo de mídias sociais",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -47,17 +48,12 @@ export default function RootLayout({
         <meta name="msapplication-starturl" content="/" />
       </head>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <>
           <NotificationBell />
           {children}
           <PWAInstaller />
           <Toaster position="top-right" />
-        </ThemeProvider>
+        </>
         <Script
           id="register-sw"
           strategy="afterInteractive"

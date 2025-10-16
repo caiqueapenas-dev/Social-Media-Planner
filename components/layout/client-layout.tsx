@@ -16,12 +16,10 @@ import {
   LogOut,
   Menu,
   X,
-  Sun,
-  Moon,
   Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/components/providers/theme-provider";
+
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import toast from "react-hot-toast";
 import { User } from "@/lib/types";
@@ -46,7 +44,6 @@ export function ClientLayout({
   const { user, isLoading, initializeUser, setUser } = useAuthStore();
   const { setClients } = useClientsStore();
   const { setPosts } = usePostsStore();
-  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     initializeUser(initialUser);
@@ -122,28 +119,14 @@ export function ClientLayout({
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="flex-1"
-              >
-                {theme === "dark" ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-                className="flex-1 gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Sair
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="w-full gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
           </div>
         </div>
       </aside>

@@ -18,6 +18,7 @@ import {
   Download,
   Loader2,
 } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
 import { useSearchParams } from "next/navigation";
 import { formatDateTime } from "@/lib/utils";
 import { downloadAndZipPosts } from "@/lib/download";
@@ -28,6 +29,34 @@ import toast from "react-hot-toast";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
+function DownloadProgressModal({
+  isOpen,
+  progress,
+  onClose,
+}: {
+  isOpen: boolean;
+  progress: number;
+  onClose: () => void;
+}) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Baixando Mídias">
+      <div className="space-y-4">
+        <p>
+          Preparando seus arquivos para download. Isso pode levar alguns
+          minutos...
+        </p>
+        <div className="w-full bg-muted rounded-full h-4">
+          <div
+            className="bg-primary h-4 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-center font-semibold">{Math.round(progress)}%</p>
+      </div>
+    </Modal>
+  );
+}
+
 function DashboardContent() {
   const supabase = createClient();
   const { user } = useAuthStore();
@@ -37,6 +66,8 @@ function DashboardContent() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [visiblePosts, setVisiblePosts] = useState({
     pending: 3,
     approved: 3,
@@ -71,7 +102,8 @@ function DashboardContent() {
       .from("posts")
       .select("*")
       .eq("client_id", clientId)
-      .order("scheduled_date", { ascending: false });
+      .order("scheduled_date", { ascending: false })
+      .limit(10000);
 
     if (data) {
       setPosts(data);
@@ -378,20 +410,23 @@ function DashboardContent() {
               size="sm"
               onClick={async () => {
                 setIsDownloading(true);
-                toast.loading("Preparando mídias para download...");
+                setIsDownloadModalOpen(true);
+                setDownloadProgress(0);
                 try {
                   await downloadAndZipPosts(
                     publishedPosts,
-                    user?.full_name || "cliente"
+                    user?.full_name || "cliente",
+                    (progress) => {
+                      setDownloadProgress(progress);
+                    }
                   );
-                  toast.dismiss();
-                  toast.success("Download iniciado!");
+                  toast.success("Download concluído!");
                 } catch (error) {
-                  toast.dismiss();
                   toast.error("Erro ao preparar o download.");
                   console.error(error);
                 } finally {
                   setIsDownloading(false);
+                  setIsDownloadModalOpen(false);
                 }
               }}
               disabled={isDownloading || publishedPosts.length === 0}
@@ -485,6 +520,11 @@ function DashboardContent() {
           }}
         />
       )}
+      <DownloadProgressModal
+        isOpen={isDownloadModalOpen}
+        progress={downloadProgress}
+        onClose={() => setIsDownloadModalOpen(false)}
+      />
     </>
   );
 }

@@ -16,15 +16,13 @@ import {
   LogOut,
   Menu,
   X,
-  Sun,
-  Moon,
   Lightbulb,
   Star,
   Download,
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/components/providers/theme-provider";
+
 import toast from "react-hot-toast";
 import { GlobalSearch } from "./global-search";
 
@@ -54,7 +52,6 @@ function AdminLayoutContent({
   const { user, isLoading, initializeUser, setUser } = useAuthStore();
   const { setClients } = useClientsStore();
   const { setPosts } = usePostsStore();
-  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     initializeUser(initialUser);
@@ -138,28 +135,14 @@ function AdminLayoutContent({
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="flex-1"
-              >
-                {theme === "dark" ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-                className="flex-1 gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Sair
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="w-full gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
           </div>
         </div>
       </aside>
