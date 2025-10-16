@@ -24,6 +24,6 @@ export default async function AdminAppLayout({
     .maybeSingle();
 
   return (
-    <AdminLayout initialUser={userData as User | null}>{children}</>
+    <AdminLayout initialUser={userData as User | null}>{children}</AdminLayout>
   );
 }
