@@ -150,6 +150,8 @@ export function BulkPostForm() {
   // --- Lógica de Upload ---
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
+      if (!activePost) return;
+
       acceptedFiles.forEach((file) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -158,28 +160,51 @@ export function BulkPostForm() {
             preview: reader.result as string,
             isNew: true,
           };
-          updateActivePost({
-            mediaFiles: [...activePost.mediaFiles, newMedia],
+
+          // Usa atualização funcional para garantir o estado mais recente do post ativo
+          setPostDataList((prevList) => {
+            return prevList.map((p) => {
+              if (p.id !== activePostId) return p;
+
+              const newMediaList = [...p.mediaFiles, newMedia];
+              let newType: PostType = p.post_type;
+
+              // Verifica se há vídeo ou se deve ser Carrossel
+              const hasVideo = newMediaList.some((m) =>
+                m.file.type.includes("video")
+              );
+
+              if (hasVideo) {
+                newType = "reel"; // Vídeo sempre é Reel (prioridade)
+              } else if (newMediaList.length > 1) {
+                newType = "carousel"; // Mais de uma imagem é Carrossel
+              } else if (newMediaList.length === 1) {
+                newType = "photo"; // Uma única imagem é Foto
+              } else {
+                newType = "photo";
+              }
+
+              // A atualização do tipo padrão (globalPostType) deve ser considerada
+              // apenas se for o primeiro arquivo adicionado ao primeiro post
+              if (p.id === postDataList[0].id && newMediaList.length === 1) {
+                setCommonData((prev) => ({
+                  ...prev,
+                  globalPostType: newType,
+                }));
+              }
+
+              return {
+                ...p,
+                mediaFiles: newMediaList,
+                post_type: newType,
+              };
+            });
           });
-          // Auto-detectar post_type se for um único arquivo e não for carrossel
-          if (activePost.mediaFiles.length === 0) {
-            const newType: PostType = file.type.includes("video")
-              ? "reel"
-              : "photo";
-            updateActivePost({ post_type: newType });
-            // Atualiza o tipo padrão se estiver vazio ou for o tipo anterior
-            setCommonData((prev) => ({
-              ...prev,
-              globalPostType: newType,
-            }));
-          } else if (activePost.mediaFiles.length >= 1) {
-            updateActivePost({ post_type: "carousel" });
-          }
         };
         reader.readAsDataURL(file);
       });
     },
-    [activePost, updateActivePost, setCommonData]
+    [activePostId, activePost, postDataList]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
