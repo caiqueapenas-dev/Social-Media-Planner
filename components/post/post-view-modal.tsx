@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { PlatformButton } from "@/components/ui/platform-button";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, sanitizeFilename } from "@/lib/utils";
 import { downloadAndZipPosts } from "@/lib/download";
 import { saveAs } from "file-saver";
 import {
@@ -336,7 +336,11 @@ export function PostViewModal({
                             .split(" ")[0]
                             .replace(/:/g, "-")
                         : "post");
-                    saveAs(blob, `${firstLine}.jpg`);
+                    const clientName = post.client?.name || "cliente";
+                    const fileName = `${sanitizeFilename(
+                      clientName
+                    )} - ${sanitizeFilename(firstLine)}.jpg`;
+                    saveAs(blob, fileName);
                   } else if (post.post_type === "carousel") {
                     await downloadAndZipPosts(
                       [post],

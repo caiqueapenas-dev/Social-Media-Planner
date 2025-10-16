@@ -2,10 +2,7 @@ import { saveAs } from "file-saver";
 import JSZip from "jszip";
 import { Post } from "./types";
 
-// Função para limpar o nome do arquivo
-const sanitizeFilename = (name: string) => {
-  return name.replace(/[^a-z0-9_.-]/gi, "_").substring(0, 50);
-};
+import { sanitizeFilename } from "./utils"; // Importa a função
 
 // Função principal para baixar e zipar os posts
 export const downloadAndZipPosts = async (
@@ -43,7 +40,22 @@ export const downloadAndZipPosts = async (
 
     const date = new Date(post.scheduled_date);
     const year = date.getFullYear().toString();
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const monthNames = [
+      "01. Janeiro",
+      "02. Fevereiro",
+      "03. Março",
+      "04. Abril",
+      "05. Maio",
+      "06. Junho",
+      "07. Julho",
+      "08. Agosto",
+      "09. Setembro",
+      "10. Outubro",
+      "11. Novembro",
+      "12. Dezembro",
+    ];
+
+    const month = monthNames[date.getMonth()];
     const day = date.getDate().toString().padStart(2, "0");
     const firstLineOfCaption = post.caption?.split("\n")[0] || "post";
     const baseFilename = sanitizeFilename(firstLineOfCaption);

@@ -14,6 +14,17 @@ export function formatDate(date: Date | string): string {
     timeZone: "America/Sao_Paulo",
   });
 }
+
+// Função para limpar o nome do arquivo
+export const sanitizeFilename = (name: string) => {
+  // Normaliza para remover acentos, substitui espaços e vírgulas, e remove caracteres não permitidos
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+    .replace(/[,]/g, " ") // Troca vírgulas por espaço
+    .replace(/[^a-z0-9 ._-]/gi, "_") // Mantém pontos e espaços, troca o resto por _
+    .substring(0, 100); // Aumenta o limite para nomes de arquivo mais longos
+};
 export function formatDateTime(date: Date | string): string {
   if (!date) {
     return "Data inválida";
