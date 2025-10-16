@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useClientsStore } from "@/store/useClientsStore";
+import { usePostsStore } from "@/store/usePostsStore";
 import { Button } from "@/components/ui/button";
 import {
   Calendar,
@@ -49,7 +51,9 @@ function AdminLayoutContent({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { user, isLoading, initializeUser } = useAuthStore();
+  const { user, isLoading, initializeUser, setUser } = useAuthStore();
+  const { setClients } = useClientsStore();
+  const { setPosts } = usePostsStore();
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -58,9 +62,11 @@ function AdminLayoutContent({
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setUser(null);
+    setClients([]);
+    setPosts([]);
     toast.success("Logout realizado com sucesso!");
     router.push("/login");
-    router.refresh();
   };
 
   return (

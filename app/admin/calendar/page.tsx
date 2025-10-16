@@ -95,7 +95,7 @@ function CalendarView() {
         client:clients(*)
       `
       )
-      .order("scheduled_date", { ascending: false });
+      .order("scheduled_date", { ascending: true });
 
     if (dateRange.from) {
       query = query.gte(
@@ -233,236 +233,200 @@ function CalendarView() {
   };
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Calendário</h1>
-            <p className="text-muted-foreground">
-              Visualize e gerencie posts agendados
-            </p>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Calendário</h1>
+          <p className="text-muted-foreground">
+            Visualize e gerencie posts agendados
+          </p>
         </div>
-
-        {/* Client Filter */}
-        <div className="space-y-2">
-          <Label htmlFor="client-filter">Filtrar por Cliente</Label>
-          <Select
-            id="client-filter"
-            value={selectedClientId}
-            onChange={(e) => setSelectedClientId(e.target.value)}
-            options={[
-              { value: "", label: "Todos os clientes" },
-              ...clients.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-          />
-        </div>
-
-        {/* Calendar */}
-        <Tabs defaultValue="monthly" onValueChange={setActiveView}>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              {activeView !== "list" && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={
-                      activeView === "monthly" ? previousMonth : previousWeek
-                    }
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={activeView === "monthly" ? nextMonth : nextWeek}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" onClick={goToToday}>
-                    Hoje
-                  </Button>
-                </>
-              )}
-              {activeView !== "list" && (
-                <h2 className="text-xl font-semibold capitalize text-center md:text-left">
-                  {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-                </h2>
-              )}
-            </div>
-            <TabsList className="grid w-full max-w-xs grid-cols-3">
-              <TabsTrigger value="monthly">Mensal</TabsTrigger>
-              <TabsTrigger value="weekly">Semanal</TabsTrigger>
-              <TabsTrigger value="list">Lista</TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="list">
-            <div className="flex items-end gap-4 mb-4 p-4 border rounded-lg bg-card">
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="date-from">De</Label>
-                <Input
-                  type="date"
-                  id="date-from"
-                  value={dateRange.from}
-                  onChange={(e) =>
-                    setDateRange((prev) => ({ ...prev, from: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="date-to">Até</Label>
-                <Input
-                  type="date"
-                  id="date-to"
-                  value={dateRange.to}
-                  onChange={(e) =>
-                    setDateRange((prev) => ({ ...prev, to: e.target.value }))
-                  }
-                />
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDateRange({ from: "", to: "" });
-                  loadPosts();
-                }}
-              >
-                Limpar
-              </Button>
-            </div>
-            <AdminCalendarList
-              posts={posts}
-              specialDates={specialDates}
-              onPostClick={handlePostClick}
-              onBulkDelete={handleBulkDelete}
-              onBulkStatusChange={handleBulkStatusChange}
-            />
-          </TabsContent>
-          <TabsContent value="monthly">
-            <Card className="p-6">
-              {/* Weekday headers */}
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(
-                  (day) => (
-                    <div
-                      key={day}
-                      className="text-center text-sm font-medium text-muted-foreground py-2"
-                    >
-                      {day}
-                    </div>
-                  )
-                )}
-              </div>
-
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-2">
-                {/* Empty cells for days before month starts */}
-                {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-                  <div key={`empty-${i}`} className="aspect-square" />
-                ))}
-
-                {/* Days of month */}
-                {daysInMonth.map((day) => {
-                  const dayPosts = getPostsForDay(day);
-                  const specialDate = getSpecialDateForDay(day);
-                  const isToday = isSameDay(day, new Date());
-
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      className={`relative group aspect-square border rounded-lg p-2 transition-colors ${
-                        isToday ? "border-primary border-2 bg-primary/5" : ""
-                      } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
-                    >
-                      <div className="flex justify-between items-center mb-1">
-                        <div className="text-sm font-medium">
-                          {format(day, "d")}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleDayClick(day)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <AdminCalendarDay
-                        day={day}
-                        posts={dayPosts}
-                        specialDate={specialDate}
-                        onPostClick={handlePostClick}
-                        onEdit={handleEditPost}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </TabsContent>
-          <TabsContent value="weekly">
-            <AdminCalendarWeekly
-              currentDate={currentMonth}
-              posts={posts}
-              specialDates={specialDates}
-              onDayClick={handleDayClick}
-              onPostClick={handlePostClick}
-              onEdit={handleEditPost}
-            />
-          </TabsContent>
-          {selectedPost && (
-            <PostViewModal
-              post={selectedPost}
-              isOpen={isViewModalOpen}
-              onClose={() => {
-                setIsViewModalOpen(false);
-                setSelectedPost(null);
-              }}
-              onEdit={() => {
-                if (selectedPost) {
-                  setIsViewModalOpen(false);
-                  handleEditPost(selectedPost);
-                }
-              }}
-            />
-          )}
-        </Tabs>
       </div>
-      <Modal
-        isOpen={isChoiceModalOpen}
-        onClose={() => setIsChoiceModalOpen(false)}
-        title="O que você deseja criar?"
-        size="sm"
-      >
-        <div className="flex flex-col gap-4 pt-4">
-          <Button
-            asChild
-            onClick={() => setIsChoiceModalOpen(false)}
-            className="w-full"
-          >
-            <Link href="/admin/posts/new">Novo Post</Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            onClick={() => setIsChoiceModalOpen(false)}
-            className="w-full"
-          >
-            <Link
-              href={`/admin/special-dates?action=new&date=${
-                selectedDayForChoice
-                  ? format(selectedDayForChoice, "yyyy-MM-dd")
-                  : ""
-              }`}
-            >
-              Nova Data Especial
-            </Link>
-          </Button>
+
+      {/* Client Filter */}
+      <div className="space-y-2">
+        <Label htmlFor="client-filter">Filtrar por Cliente</Label>
+        <Select
+          id="client-filter"
+          value={selectedClientId}
+          onChange={(e) => setSelectedClientId(e.target.value)}
+          options={[
+            { value: "", label: "Todos os clientes" },
+            ...clients.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+        />
+      </div>
+
+      {/* Calendar */}
+      <Tabs defaultValue="monthly" onValueChange={setActiveView}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            {activeView !== "list" && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={
+                    activeView === "monthly" ? previousMonth : previousWeek
+                  }
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={activeView === "monthly" ? nextMonth : nextWeek}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" onClick={goToToday}>
+                  Hoje
+                </Button>
+              </>
+            )}
+            {activeView !== "list" && (
+              <h2 className="text-xl font-semibold capitalize text-center md:text-left">
+                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+              </h2>
+            )}
+          </div>
+          <TabsList className="grid w-full max-w-xs grid-cols-3">
+            <TabsTrigger value="monthly">Mensal</TabsTrigger>
+            <TabsTrigger value="weekly">Semanal</TabsTrigger>
+            <TabsTrigger value="list">Lista</TabsTrigger>
+          </TabsList>
         </div>
-      </Modal>
-    </AdminLayout>
+        <TabsContent value="list">
+          <div className="flex items-end gap-4 mb-4 p-4 border rounded-lg bg-card">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="date-from">De</Label>
+              <Input
+                type="date"
+                id="date-from"
+                value={dateRange.from}
+                onChange={(e) =>
+                  setDateRange((prev) => ({ ...prev, from: e.target.value }))
+                }
+              />
+            </div>
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="date-to">Até</Label>
+              <Input
+                type="date"
+                id="date-to"
+                value={dateRange.to}
+                onChange={(e) =>
+                  setDateRange((prev) => ({ ...prev, to: e.target.value }))
+                }
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDateRange({ from: "", to: "" });
+                loadPosts();
+              }}
+            >
+              Limpar
+            </Button>
+          </div>
+          <AdminCalendarList
+            posts={posts}
+            specialDates={specialDates}
+            onPostClick={handlePostClick}
+            onBulkDelete={handleBulkDelete}
+            onBulkStatusChange={handleBulkStatusChange}
+          />
+        </TabsContent>
+        <TabsContent value="monthly">
+          <Card className="p-6">
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
+                <div
+                  key={day}
+                  className="text-center text-sm font-medium text-muted-foreground py-2"
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-2">
+              {/* Empty cells for days before month starts */}
+              {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+                <div key={`empty-${i}`} className="aspect-square" />
+              ))}
+
+              {/* Days of month */}
+              {daysInMonth.map((day) => {
+                const dayPosts = getPostsForDay(day);
+                const specialDate = getSpecialDateForDay(day);
+                const isToday = isSameDay(day, new Date());
+
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={`relative group aspect-square border rounded-lg p-2 transition-colors ${
+                      isToday ? "border-primary border-2 bg-primary/5" : ""
+                    } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <div className="text-sm font-medium">
+                        {format(day, "d")}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleDayClick(day)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <AdminCalendarDay
+                      day={day}
+                      posts={dayPosts}
+                      specialDate={specialDate}
+                      onPostClick={handlePostClick}
+                      onEdit={handleEditPost}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </TabsContent>
+        <TabsContent value="weekly">
+          <AdminCalendarWeekly
+            currentDate={currentMonth}
+            posts={posts}
+            specialDates={specialDates}
+            onDayClick={handleDayClick}
+            onPostClick={handlePostClick}
+            onEdit={handleEditPost}
+          />
+        </TabsContent>
+        {selectedPost && (
+          <PostViewModal
+            post={selectedPost}
+            isOpen={isViewModalOpen}
+            onClose={() => {
+              setIsViewModalOpen(false);
+              setSelectedPost(null);
+            }}
+            onEdit={() => {
+              if (selectedPost) {
+                setIsViewModalOpen(false);
+                handleEditPost(selectedPost);
+              }
+            }}
+          />
+        )}
+      </Tabs>
+    </div>
   );
 }
 

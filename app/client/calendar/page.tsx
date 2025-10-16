@@ -202,7 +202,7 @@ export default function ClientCalendarPage() {
       refreshPosts();
       refreshSpecialDates();
     }
-  }, [clientId, currentMonth, refreshPosts, refreshSpecialDates]);
+  }, [clientId, currentMonth]);
 
   // --- Lógica de Swipe ---
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -277,189 +277,185 @@ export default function ClientCalendarPage() {
   };
 
   return (
-    <ClientLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold">Calendário</h1>
-          <p className="text-muted-foreground">
-            Visualize seus posts agendados e datas comemorativas
-          </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Calendário</h1>
+        <p className="text-muted-foreground">
+          Visualize seus posts agendados e datas comemorativas
+        </p>
+      </div>
+
+      {/* Calendar */}
+      <Tabs defaultValue="monthly" onValueChange={setActiveView}>
+        <div className="flex flex-col gap-4 mb-4">
+          {activeView !== "list" && ( // CORREÇÃO: Esconde navegação e título na vista de lista
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={previous}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={next}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" onClick={goToToday}>
+                  Hoje
+                </Button>
+              </div>
+              <h2 className="text-xl font-semibold capitalize">
+                {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+              </h2>
+            </div>
+          )}
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="monthly">Mensal</TabsTrigger>
+            <TabsTrigger value="weekly">Semanal</TabsTrigger>
+            <TabsTrigger value="list">Lista</TabsTrigger>
+          </TabsList>
         </div>
 
-        {/* Calendar */}
-        <Tabs defaultValue="monthly" onValueChange={setActiveView}>
-          <div className="flex flex-col gap-4 mb-4">
-            {activeView !== "list" && ( // CORREÇÃO: Esconde navegação e título na vista de lista
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" onClick={previous}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" onClick={next}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" onClick={goToToday}>
-                    Hoje
-                  </Button>
+        <TabsContent value="monthly">
+                     {" "}
+          <Card
+            key={format(currentMonth, "yyyy-MM")} // Força a re-renderização na mudança de mês
+            className="p-6 animate-fade-in" // Adiciona a animação
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
+                <div
+                  key={day}
+                  className="text-center text-sm font-medium text-muted-foreground py-2"
+                >
+                  {day.substring(0, 3)}
                 </div>
-                <h2 className="text-xl font-semibold capitalize">
-                  {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-                </h2>
-              </div>
-            )}
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="monthly">Mensal</TabsTrigger>
-              <TabsTrigger value="weekly">Semanal</TabsTrigger>
-              <TabsTrigger value="list">Lista</TabsTrigger>
-            </TabsList>
-          </div>
+              ))}
+            </div>
 
-          <TabsContent value="monthly">
-                       {" "}
-            <Card
-              key={format(currentMonth, "yyyy-MM")} // Força a re-renderização na mudança de mês
-              className="p-6 animate-fade-in" // Adiciona a animação
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            >
-              {/* Weekday headers */}
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(
-                  (day) => (
-                    <div
-                      key={day}
-                      className="text-center text-sm font-medium text-muted-foreground py-2"
-                    >
-                      {day.substring(0, 3)}
-                    </div>
-                  )
-                )}
-              </div>
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-2">
+              {/* Empty cells */}
+              {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+                <div key={`empty-${i}`} className="aspect-square" />
+              ))}
 
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-2">
-                {/* Empty cells */}
-                {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-                  <div key={`empty-${i}`} className="aspect-square" />
-                ))}
+              {/* Days */}
+              {daysInMonth.map((day) => {
+                const dayPosts = getPostsForDay(day);
+                const specialDate = getSpecialDateForDay(day);
+                const isToday = isSameDay(day, new Date());
 
-                {/* Days */}
-                {daysInMonth.map((day) => {
-                  const dayPosts = getPostsForDay(day);
-                  const specialDate = getSpecialDateForDay(day);
-                  const isToday = isSameDay(day, new Date());
-
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      className={`relative aspect-square border rounded-lg p-2 transition-colors ${
-                        isToday ? "border-primary border-2 bg-primary/5" : ""
-                      } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
-                    >
-                      <div className="text-sm font-medium mb-1">
-                        {format(day, "d")}
-                      </div>
-                      <ClientCalendarDay
-                        posts={dayPosts}
-                        specialDate={specialDate}
-                        onPostUpdate={refreshPosts}
-                        onApprove={handleApprove}
-                        onRefactor={handleRequestAlteration}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </TabsContent>
-          <TabsContent value="weekly">
-                       {" "}
-            <Card
-              key={format(currentMonth, "yyyy-ww")} // Força a re-renderização na mudança de semana
-              className="p-4 animate-fade-in" // Adiciona a animação
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            >
-              <div className="grid grid-cols-7 gap-2">
-                {eachDayOfInterval({
-                  start: startOfWeek(currentMonth, { locale: ptBR }),
-                  end: endOfWeek(currentMonth, { locale: ptBR }),
-                }).map((day) => (
+                return (
                   <div
                     key={day.toISOString()}
-                    className="border rounded-lg p-2 space-y-2 min-h-[150px] flex flex-col"
+                    className={`relative aspect-square border rounded-lg p-2 transition-colors ${
+                      isToday ? "border-primary border-2 bg-primary/5" : ""
+                    } ${!isSameMonth(day, currentMonth) ? "opacity-50" : ""}`}
                   >
-                    <div className="text-center font-medium text-sm border-b pb-2">
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {format(day, "EEEE", { locale: ptBR }).substring(0, 3)}
-                      </p>
-                      <p>{format(day, "d")}</p>
+                    <div className="text-sm font-medium mb-1">
+                      {format(day, "d")}
                     </div>
-                    <div className="flex-1">
-                      <ClientCalendarDay
-                        posts={getPostsForDay(day)}
-                        specialDate={getSpecialDateForDay(day)}
-                        onPostUpdate={refreshPosts}
-                        onApprove={handleApprove}
-                        onRefactor={handleRequestAlteration}
-                      />
-                    </div>
+                    <ClientCalendarDay
+                      posts={dayPosts}
+                      specialDate={specialDate}
+                      onPostUpdate={refreshPosts}
+                      onApprove={handleApprove}
+                      onRefactor={handleRequestAlteration}
+                    />
                   </div>
-                ))}
-              </div>
-            </Card>
-          </TabsContent>
-          <TabsContent value="list">
-            <Card className="p-4">
-              <ClientCalendarList
-                posts={posts}
-                specialDates={specialDates}
-                onPostClick={handlePostClick}
-              />
-            </Card>
-          </TabsContent>
-        </Tabs>
+                );
+              })}
+            </div>
+          </Card>
+        </TabsContent>
+        <TabsContent value="weekly">
+                     {" "}
+          <Card
+            key={format(currentMonth, "yyyy-ww")} // Força a re-renderização na mudança de semana
+            className="p-4 animate-fade-in" // Adiciona a animação
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="grid grid-cols-7 gap-2">
+              {eachDayOfInterval({
+                start: startOfWeek(currentMonth, { locale: ptBR }),
+                end: endOfWeek(currentMonth, { locale: ptBR }),
+              }).map((day) => (
+                <div
+                  key={day.toISOString()}
+                  className="border rounded-lg p-2 space-y-2 min-h-[150px] flex flex-col"
+                >
+                  <div className="text-center font-medium text-sm border-b pb-2">
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {format(day, "EEEE", { locale: ptBR }).substring(0, 3)}
+                    </p>
+                    <p>{format(day, "d")}</p>
+                  </div>
+                  <div className="flex-1">
+                    <ClientCalendarDay
+                      posts={getPostsForDay(day)}
+                      specialDate={getSpecialDateForDay(day)}
+                      onPostUpdate={refreshPosts}
+                      onApprove={handleApprove}
+                      onRefactor={handleRequestAlteration}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </TabsContent>
+        <TabsContent value="list">
+          <Card className="p-4">
+            <ClientCalendarList
+              posts={posts}
+              specialDates={specialDates}
+              onPostClick={handlePostClick}
+            />
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-        {selectedPost && (
-          <PostViewModal
-            post={selectedPost}
-            isOpen={isModalOpen}
-            onClose={() => {
-              setIsModalOpen(false);
-              setSelectedPost(null);
-              refreshPosts();
-            }}
-            onApprove={handleApprove}
-            onRefactor={handleRequestAlteration}
-            showEditButton={false}
-          />
-        )}
-        {/* Legend */}
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-yellow-500" />
-            <span>Pendente</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span>Aprovado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Star className="h-3 w-3 text-blue-500 fill-blue-500" />
-            <span>Data Especial</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
-            <span>Publicado</span>
-          </div>
-          <p className="text-muted-foreground text-xs">
-            Clique nos dias para ver detalhes e aprovar posts
-          </p>
+      {selectedPost && (
+        <PostViewModal
+          post={selectedPost}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedPost(null);
+            refreshPosts();
+          }}
+          onApprove={handleApprove}
+          onRefactor={handleRequestAlteration}
+          showEditButton={false}
+        />
+      )}
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-yellow-500" />
+          <span>Pendente</span>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <span>Aprovado</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Star className="h-3 w-3 text-blue-500 fill-blue-500" />
+          <span>Data Especial</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-blue-500" />
+          <span>Publicado</span>
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Clique nos dias para ver detalhes e aprovar posts
+        </p>
       </div>
-    </ClientLayout>
+    </div>
   );
 }

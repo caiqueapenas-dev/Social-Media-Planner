@@ -71,7 +71,7 @@ function DashboardContent() {
       .from("posts")
       .select("*")
       .eq("client_id", clientId)
-      .order("scheduled_date", { ascending: true });
+      .order("scheduled_date", { ascending: false });
 
     if (data) {
       setPosts(data);
@@ -79,17 +79,17 @@ function DashboardContent() {
   };
 
   const pendingPosts = posts.filter((p) => p.status === "pending");
-  const approvedPosts = posts.filter(
-    (p) => p.status === "approved" && new Date(p.scheduled_date) > new Date()
-  );
-
-  const publishedPosts = posts
-    .filter((p) => p.status === "published")
+  const approvedPosts = posts
+    .filter(
+      (p) => p.status === "approved" && new Date(p.scheduled_date) > new Date()
+    )
     .sort(
       (a, b) =>
-        new Date(b.scheduled_date).getTime() -
-        new Date(a.scheduled_date).getTime()
+        new Date(a.scheduled_date).getTime() -
+        new Date(b.scheduled_date).getTime()
     );
+
+  const publishedPosts = posts.filter((p) => p.status === "published");
 
   const handleApprove = async (post: Post) => {
     const scheduledDate = new Date(post.scheduled_date);
