@@ -20,15 +20,26 @@ import {
   Star,
   Download,
   Plus,
+  UnfoldVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import toast from "react-hot-toast";
 import { GlobalSearch } from "./global-search";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Calendário", href: "/admin/calendar", icon: Calendar },
+  {
+    name: "Posts em Massa",
+    href: "/admin/posts/bulk-new",
+    icon: UnfoldVertical,
+  },
   { name: "Clientes", href: "/admin/clients", icon: Users },
   { name: "Datas Especiais", href: "/admin/special-dates", icon: Star },
   { name: "Importar", href: "/admin/import", icon: Download },
@@ -114,12 +125,34 @@ function AdminLayoutContent({
             })}
           </nav>
           <div className="mt-auto p-4">
-            <Button asChild className="w-full gap-2">
-              <Link href="/admin/posts/new">
-                <Plus className="h-4 w-4" />
-                Novo Post
-              </Link>
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button className="w-full gap-2">
+                  <Plus className="h-4 w-4" />
+                  Novo Post
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-1">
+                <Link href="/admin/posts/new">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Post Único
+                  </Button>
+                </Link>
+                <Link href="/admin/posts/bulk-new">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                  >
+                    <UnfoldVertical className="h-4 w-4" />
+                    Posts em Massa
+                  </Button>
+                </Link>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="p-4 border-t space-y-2">
             {isLoading ? (
