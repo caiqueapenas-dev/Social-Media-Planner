@@ -1,3 +1,5 @@
+// components/layout/client-layout.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,42 +22,13 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import toast from "react-hot-toast";
-import { redirect } from "next/navigation";
-
-export default async function ClientAppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) {
-    redirect("/login");
-  }
-
-  const { data: userData } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", authUser.id)
-    .single();
-
-  return (
-    <ClientLayout initialUser={userData as User | null}>
-      {children}
-    </ClientLayout>
-  );
-}
+import { User } from "@/lib/types";
 
 const navigation = [
   { name: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard },
   { name: "Calendário", href: "/client/calendar", icon: Calendar },
   { name: "Insights", href: "/client/insights", icon: Lightbulb },
 ];
-
-import { User } from "@/lib/types";
 
 export function ClientLayout({
   children,

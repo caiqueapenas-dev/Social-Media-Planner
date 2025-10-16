@@ -23,8 +23,10 @@ import { formatDateTime } from "@/lib/utils";
 import { downloadAndZipPosts } from "@/lib/download";
 import { saveAs } from "file-saver";
 import { BulkApprovalModal } from "@/components/post/bulk-approval-modal";
-import { Post } from "@/lib/types";
+import { Post, User } from "@/lib/types";
 import toast from "react-hot-toast";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 function DashboardContent() {
   const supabase = createClient();
@@ -370,36 +372,6 @@ function DashboardContent() {
                 <History className="h-5 w-5" />
                 Últimos Posts Publicados
               </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  setIsDownloading(true);
-                  toast.loading("Preparando mídias para download...");
-                  try {
-                    await downloadAndZipPosts(
-                      publishedPosts,
-                      user?.full_name || "cliente"
-                    );
-                    toast.dismiss();
-                    toast.success("Download iniciado!");
-                  } catch (error) {
-                    toast.dismiss();
-                    toast.error("Erro ao preparar o download.");
-                    console.error(error);
-                  } finally {
-                    setIsDownloading(false);
-                  }
-                }}
-                disabled={isDownloading || publishedPosts.length === 0}
-              >
-                {isDownloading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4 mr-2" />
-                )}
-                {isDownloading ? "Preparando..." : "Baixar Mídias"}
-              </Button>
             </div>
             <Button
               variant="outline"
@@ -516,20 +488,17 @@ function DashboardContent() {
     </>
   );
 }
+
 export default function ClientDashboard() {
   return (
-    <ClientLayout>
-      <Suspense
-        fallback={
-          <div className="h-full min-h-[80vh] flex items-center justify-center">
-            <p className="text-xl text-muted-foreground">
-              Carregando painel...
-            </p>
-          </div>
-        }
-      >
-        <DashboardContent />
-      </Suspense>
-    </ClientLayout>
+    <Suspense
+      fallback={
+        <div className="h-full min-h-[80vh] flex items-center justify-center">
+          <p className="text-xl text-muted-foreground">Carregando painel...</p>
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }
