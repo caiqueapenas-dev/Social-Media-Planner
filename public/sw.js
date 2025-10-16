@@ -24,11 +24,12 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Ignora completamente as requisições de API (Supabase e internas) do cache.
-  // Elas sempre devem ir para a rede.
+  // Ignora completamente as requisições de API (Supabase e internas) E qualquer
+  // requisição que não seja GET (como POST), pois a API Cache só suporta GET.
   if (
     url.pathname.startsWith("/api/") ||
-    url.hostname.endsWith("supabase.co")
+    url.hostname.endsWith("supabase.co") ||
+    event.request.method !== "GET"
   ) {
     return; // Deixa o navegador lidar com a requisição, sem interceptar.
   }

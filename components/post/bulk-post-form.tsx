@@ -233,21 +233,35 @@ export function BulkPostForm() {
   };
 
   const removeMedia = (index: number) => {
-    const newMediaList = activePost.mediaFiles.filter((_, i) => i !== index);
-    updateActivePost({ mediaFiles: newMediaList });
+    setPostDataList((prevList) => {
+      return prevList.map((p) => {
+        if (p.id !== activePostId) return p;
 
-    // Ajuste automático do tipo de postagem
-    if (newMediaList.length === 0) {
-      updateActivePost({ post_type: "photo" });
-    } else if (newMediaList.length === 1) {
-      // Se sobrou um item, verifica se é vídeo (reel) ou foto
-      const newType: PostType = newMediaList[0].file.type.includes("video")
-        ? "reel"
-        : "photo";
-      updateActivePost({ post_type: newType });
-    } else if (newMediaList.length > 1) {
-      updateActivePost({ post_type: "carousel" });
-    }
+        const newMediaList = p.mediaFiles.filter((_, i) => i !== index);
+        let newType: PostType = "photo"; // Default
+
+        // Recalcula o tipo de postagem (idêntico ao onDrop, mas agora para remoção)
+        const hasVideo = newMediaList.some((m) =>
+          m.file.type.includes("video")
+        );
+
+        if (hasVideo) {
+          newType = "reel";
+        } else if (newMediaList.length > 1) {
+          newType = "carousel";
+        } else if (newMediaList.length === 1) {
+          newType = "photo";
+        } else {
+          newType = "photo";
+        }
+
+        return {
+          ...p,
+          mediaFiles: newMediaList,
+          post_type: newType,
+        };
+      });
+    });
   };
 
   // --- Lógica de Submissão ---
@@ -281,13 +295,27 @@ export function BulkPostForm() {
           const url = await uploadToCloudinary(media.file);
           uploadedUrls.push(url);
         }
+        // O post.post_type já deve estar correto (carousel, reel ou photo).
+        // Apenas garantimos a forçagem final de Carrossel.
+        let finalPostType: PostType = post.post_type;
+
+        if (uploadedUrls.length > 1 && post.post_type !== "reel") {
+          // Se a contagem de URLs é > 1 E NÃO é Reel (porque Reels só tem 1 URL de vídeo),
+          // então deve ser Carrossel.
+          finalPostType = "carousel";
+        } else if (uploadedUrls.length === 1 && post.post_type === "carousel") {
+          // Correção de segurança: se o usuário removeu um item e o tipo é carrossel, volta para foto/reel
+          finalPostType = post.mediaFiles[0].file.type.includes("video")
+            ? "reel"
+            : "photo";
+        }
 
         postsToCreate.push({
           client_id: commonData.client_id,
           caption: post.caption,
           scheduled_date: new Date(commonData.scheduled_date).toISOString(),
           status: "pending",
-          post_type: post.mediaFiles.length > 1 ? "carousel" : post.post_type, // Força carrossel se tiver mais de uma mídia
+          post_type: finalPostType,
           platforms: commonData.platforms,
           media_urls: uploadedUrls,
           created_by: user.id,
