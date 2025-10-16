@@ -340,14 +340,17 @@ export function PostViewModal({
                   } else if (post.post_type === "carousel") {
                     await downloadAndZipPosts(
                       [post],
-                      post.client?.name || "cliente"
+                      post.client?.name || "cliente",
+                      () => {}
                     );
                   }
                   toast.dismiss();
                   toast.success("Download iniciado!");
                 } catch (error) {
                   toast.dismiss();
-                  toast.error("Erro ao baixar a mídia.");
+                  toast.error(
+                    "Erro ao baixar a mídia. Contate o Administrador."
+                  );
                   console.error(error);
                 } finally {
                   setIsDownloading(false);
