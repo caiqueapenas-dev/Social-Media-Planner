@@ -252,7 +252,7 @@ function SpecialDatesView() {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -550,7 +550,7 @@ function SpecialDatesView() {
           </div>
         </form>
       </Modal>
-    </AdminLayout>
+    </>
   );
 }
 export default function SpecialDatesPage() {
