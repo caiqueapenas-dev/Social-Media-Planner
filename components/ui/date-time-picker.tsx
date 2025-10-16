@@ -15,6 +15,7 @@ interface DateTimePickerProps {
   onChange: (value: string) => void;
   label?: string;
   required?: boolean;
+  disabled?: boolean;
 }
 
 export function DateTimePicker({
@@ -22,6 +23,7 @@ export function DateTimePicker({
   onChange,
   label = "Data e Hora",
   required,
+  disabled,
 }: DateTimePickerProps) {
   const [showPicker, setShowPicker] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +80,7 @@ export function DateTimePicker({
               placeholder="DD/MM/AAAA"
               className="pl-10 cursor-pointer"
               readOnly
+              disabled={disabled}
             />
           </div>
           <Input
@@ -85,6 +88,7 @@ export function DateTimePicker({
             value={timeValue}
             onChange={handleTimeChange}
             className="w-28"
+            disabled={disabled}
           />
         </div>
 
