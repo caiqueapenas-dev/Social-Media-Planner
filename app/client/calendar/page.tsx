@@ -108,16 +108,30 @@ export default function ClientCalendarPage() {
 
   const refreshPosts = useCallback(async () => {
     if (!clientId) return;
-    const { data } = await supabase
+    let query = supabase
       .from("posts")
       .select("*")
       .eq("client_id", clientId)
       .order("scheduled_date", { ascending: true });
 
+    if (activeView === "monthly") {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      query = query.gte("scheduled_date", monthStart.toISOString());
+      query = query.lte("scheduled_date", monthEnd.toISOString());
+    } else if (activeView === "weekly") {
+      const weekStart = startOfWeek(currentMonth, { locale: ptBR });
+      const weekEnd = endOfWeek(currentMonth, { locale: ptBR });
+      query = query.gte("scheduled_date", weekStart.toISOString());
+      query = query.lte("scheduled_date", weekEnd.toISOString());
+    }
+    // A view "list" já busca todos, então não precisa de filtro de data aqui.
+
+    const { data } = await query;
     if (data) {
       setPosts(data);
     }
-  }, [supabase, clientId]);
+  }, [supabase, clientId, currentMonth, activeView]);
 
   const refreshSpecialDates = useCallback(async () => {
     if (!clientId) return;
@@ -202,7 +216,7 @@ export default function ClientCalendarPage() {
       refreshPosts();
       refreshSpecialDates();
     }
-  }, [clientId, currentMonth]);
+  }, [clientId, currentMonth, activeView, refreshPosts, refreshSpecialDates]);
 
   // --- Lógica de Swipe ---
   const handleTouchStart = (e: React.TouchEvent) => {

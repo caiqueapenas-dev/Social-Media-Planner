@@ -36,7 +36,14 @@ export function AdminCalendarWeekly({
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const getPostsForDay = (day: Date) =>
-    posts.filter((post) => isSameDay(new Date(post.scheduled_date), day));
+    posts.filter((post) => {
+      if (!post.scheduled_date) return false;
+      // Fix for timezone issue by parsing only the date part
+      const dateString = post.scheduled_date.substring(0, 10);
+      const [year, month, date] = dateString.split("-").map(Number);
+      const postDate = new Date(year, month - 1, date);
+      return isSameDay(postDate, day);
+    });
   const getSpecialDateForDay = (day: Date) =>
     specialDates.find((sd) => {
       const sdDate = new Date(sd.date + "T00:00:00");

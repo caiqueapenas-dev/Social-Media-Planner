@@ -22,6 +22,8 @@ import {
   eachDayOfInterval,
   isSameDay,
   isSameMonth,
+  startOfWeek,
+  endOfWeek,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
@@ -97,14 +99,29 @@ function CalendarView() {
       )
       .order("scheduled_date", { ascending: true });
 
-    if (dateRange.from) {
-      query = query.gte(
-        "scheduled_date",
-        new Date(dateRange.from).toISOString()
-      );
-    }
-    if (dateRange.to) {
-      query = query.lte("scheduled_date", new Date(dateRange.to).toISOString());
+    if (activeView === "monthly") {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      query = query.gte("scheduled_date", monthStart.toISOString());
+      query = query.lte("scheduled_date", monthEnd.toISOString());
+    } else if (activeView === "weekly") {
+      const weekStart = startOfWeek(currentMonth, { locale: ptBR });
+      const weekEnd = endOfWeek(currentMonth, { locale: ptBR });
+      query = query.gte("scheduled_date", weekStart.toISOString());
+      query = query.lte("scheduled_date", weekEnd.toISOString());
+    } else if (activeView === "list") {
+      if (dateRange.from) {
+        query = query.gte(
+          "scheduled_date",
+          new Date(dateRange.from).toISOString()
+        );
+      }
+      if (dateRange.to) {
+        query = query.lte(
+          "scheduled_date",
+          new Date(dateRange.to).toISOString()
+        );
+      }
     }
 
     if (selectedClientId) {
