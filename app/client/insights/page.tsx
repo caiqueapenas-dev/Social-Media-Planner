@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import { ClientLayout } from "@/components/layout/client-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -170,157 +169,155 @@ export default function ClientInsightsPage() {
   };
 
   return (
-    <ClientLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Insights & Ideias</h1>
-          <p className="text-muted-foreground">
-            Compartilhe suas ideias de conteúdo com a equipe
-          </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Insights & Ideias</h1>
+        <p className="text-muted-foreground">
+          Compartilhe suas ideias de conteúdo com a equipe
+        </p>
+      </div>
+
+      {selectedInsights.length > 0 && (
+        <div className="flex justify-end">
+          <Button
+            variant="destructive"
+            onClick={() => handleDelete(selectedInsights)}
+          >
+            Excluir Selecionados ({selectedInsights.length})
+          </Button>
         </div>
+      )}
 
-        {selectedInsights.length > 0 && (
-          <div className="flex justify-end">
-            <Button
-              variant="destructive"
-              onClick={() => handleDelete(selectedInsights)}
-            >
-              Excluir Selecionados ({selectedInsights.length})
-            </Button>
-          </div>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5" />
-              {editingInsight ? "Editar Ideia" : "Compartilhar Nova Ideia"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Textarea
-                value={newInsight}
-                onChange={(e) => setNewInsight(e.target.value)}
-                placeholder="Descreva sua ideia de conteúdo, sugestão de post, tema ou qualquer outra inspiração..."
-                rows={4}
-                required
-              />
-              <div className="flex gap-2">
-                <Button type="submit" disabled={isSubmitting} className="gap-2">
-                  <Send className="h-4 w-4" />
-                  {isSubmitting
-                    ? "Enviando..."
-                    : editingInsight
-                    ? "Atualizar Ideia"
-                    : "Compartilhar Ideia"}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lightbulb className="h-5 w-5" />
+            {editingInsight ? "Editar Ideia" : "Compartilhar Nova Ideia"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Textarea
+              value={newInsight}
+              onChange={(e) => setNewInsight(e.target.value)}
+              placeholder="Descreva sua ideia de conteúdo, sugestão de post, tema ou qualquer outra inspiração..."
+              rows={4}
+              required
+            />
+            <div className="flex gap-2">
+              <Button type="submit" disabled={isSubmitting} className="gap-2">
+                <Send className="h-4 w-4" />
+                {isSubmitting
+                  ? "Enviando..."
+                  : editingInsight
+                  ? "Atualizar Ideia"
+                  : "Compartilhar Ideia"}
+              </Button>
+              {editingInsight && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditingInsight(null);
+                    setNewInsight("");
+                  }}
+                >
+                  Cancelar Edição
                 </Button>
-                {editingInsight && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setEditingInsight(null);
-                      setNewInsight("");
-                    }}
-                  >
-                    Cancelar Edição
-                  </Button>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Ideias</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {insights.map((insight) => {
-              const insightTyped = insight as Insight;
-              const author = insightTyped.user;
-              const isByClient = author?.role === "client";
-              const authorName = author?.full_name || "Usuário";
-              const authorRole = isByClient ? "Cliente" : "Admin";
+      <Card>
+        <CardHeader>
+          <CardTitle>Histórico de Ideias</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {insights.map((insight) => {
+            const insightTyped = insight as Insight;
+            const author = insightTyped.user;
+            const isByClient = author?.role === "client";
+            const authorName = author?.full_name || "Usuário";
+            const authorRole = isByClient ? "Cliente" : "Admin";
 
-              return (
-                <div
-                  key={insightTyped.id}
-                  className={`border rounded-lg p-4 space-y-2 transition-colors ${
-                    selectedInsights.includes(insightTyped.id)
-                      ? "bg-primary/10"
-                      : ""
+            return (
+              <div
+                key={insightTyped.id}
+                className={`border rounded-lg p-4 space-y-2 transition-colors ${
+                  selectedInsights.includes(insightTyped.id)
+                    ? "bg-primary/10"
+                    : ""
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {user?.id === insightTyped.created_by && (
+                      <input
+                        type="checkbox"
+                        checked={selectedInsights.includes(insightTyped.id)}
+                        onChange={() =>
+                          toggleSelection(
+                            insightTyped.id,
+                            insightTyped.created_by
+                          )
+                        }
+                        className="cursor-pointer"
+                      />
+                    )}
+                    <div
+                      className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground bg-cover bg-center"
+                      style={{
+                        backgroundImage: author?.avatar_url
+                          ? `url(${author.avatar_url})`
+                          : "none",
+                      }}
+                    >
+                      {!author?.avatar_url && (authorName?.[0] || "?")}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{authorName}</p>
+                        <Badge variant={isByClient ? "secondary" : "default"}>
+                          {authorRole}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateTime(insightTyped.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                  {user?.id === insightTyped.created_by && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(insightTyped)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete([insightTyped.id])}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <p
+                  className={`text-sm whitespace-pre-wrap ${
+                    user?.id === insightTyped.created_by ? "pl-12" : "pl-10"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {user?.id === insightTyped.created_by && (
-                        <input
-                          type="checkbox"
-                          checked={selectedInsights.includes(insightTyped.id)}
-                          onChange={() =>
-                            toggleSelection(
-                              insightTyped.id,
-                              insightTyped.created_by
-                            )
-                          }
-                          className="cursor-pointer"
-                        />
-                      )}
-                      <div
-                        className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground bg-cover bg-center"
-                        style={{
-                          backgroundImage: author?.avatar_url
-                            ? `url(${author.avatar_url})`
-                            : "none",
-                        }}
-                      >
-                        {!author?.avatar_url && (authorName?.[0] || "?")}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm">{authorName}</p>
-                          <Badge variant={isByClient ? "secondary" : "default"}>
-                            {authorRole}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDateTime(insightTyped.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                    {user?.id === insightTyped.created_by && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(insightTyped)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete([insightTyped.id])}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <p
-                    className={`text-sm whitespace-pre-wrap ${
-                      user?.id === insightTyped.created_by ? "pl-12" : "pl-10"
-                    }`}
-                  >
-                    {insightTyped.content}
-                  </p>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </div>
-    </ClientLayout>
+                  {insightTyped.content}
+                </p>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
