@@ -17,7 +17,7 @@ export function useClientData() {
           .from("clients")
           .select("id")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (clientData) {
           setClientId(clientData.id);

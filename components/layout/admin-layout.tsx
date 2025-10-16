@@ -36,38 +36,25 @@ const navigation = [
   { name: "Configurações", href: "/admin/settings", icon: Settings },
 ];
 
-function AdminLayoutContent({ children }: { children: React.ReactNode }) {
+import { User } from "@/lib/types";
+
+function AdminLayoutContent({
+  children,
+  initialUser,
+}: {
+  children: React.ReactNode;
+  initialUser: User | null;
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { user, setUser, isLoading, setLoading } = useAuthStore();
+  const { user, isLoading, initializeUser } = useAuthStore();
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (authUser) {
-        if (!user || user.id !== authUser.id) {
-          const { data: userData } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", authUser.id)
-            .single();
-
-          if (userData) {
-            setUser(userData as any);
-          }
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchUser();
-  }, [supabase, setUser, setLoading, user]);
+    initializeUser(initialUser);
+  }, [initialUser, initializeUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -192,10 +179,18 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
+export function AdminLayout({
+  children,
+  initialUser,
+}: {
+  children: React.ReactNode;
+  initialUser: User | null;
+}) {
   return (
     <Suspense fallback={<div>Carregando...</div>}>
-      <AdminLayoutContent>{children}</AdminLayoutContent>
+      <AdminLayoutContent initialUser={initialUser}>
+        {children}
+      </AdminLayoutContent>
     </Suspense>
   );
 }

@@ -20,6 +20,34 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import toast from "react-hot-toast";
+import { redirect } from "next/navigation";
+
+export default async function ClientAppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) {
+    redirect("/login");
+  }
+
+  const { data: userData } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", authUser.id)
+    .single();
+
+  return (
+    <ClientLayout initialUser={userData as User | null}>
+      {children}
+    </ClientLayout>
+  );
+}
 
 const navigation = [
   { name: "Dashboard", href: "/client/dashboard", icon: LayoutDashboard },
@@ -27,39 +55,25 @@ const navigation = [
   { name: "Insights", href: "/client/insights", icon: Lightbulb },
 ];
 
-export function ClientLayout({ children }: { children: React.ReactNode }) {
+import { User } from "@/lib/types";
+
+export function ClientLayout({
+  children,
+  initialUser,
+}: {
+  children: React.ReactNode;
+  initialUser: User | null;
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { user, setUser, isLoading, setLoading } = useAuthStore();
+  const { user, isLoading, initializeUser } = useAuthStore();
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      setLoading(true);
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (authUser) {
-        const { data: userData } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", authUser.id)
-          .single();
-
-        if (userData) {
-          setUser(userData as any);
-        }
-      }
-      setLoading(false);
-    };
-
-    if (!user) {
-      fetchUser();
-    }
-  }, [supabase, setUser, setLoading, user]);
+    initializeUser(initialUser);
+  }, [initialUser, initializeUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
