@@ -204,7 +204,7 @@ export default function AdminDashboardImproved() {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -611,6 +611,6 @@ export default function AdminDashboardImproved() {
       )}
 
       {/* O modal do formulário foi removido e substituído por páginas dedicadas */}
-    </AdminLayout>
+    </>
   );
 }

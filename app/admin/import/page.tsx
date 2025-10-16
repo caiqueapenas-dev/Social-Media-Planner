@@ -88,7 +88,7 @@ export default function ImportPage() {
   );
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -174,6 +174,6 @@ export default function ImportPage() {
           </Card>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

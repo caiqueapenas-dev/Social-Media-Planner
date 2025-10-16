@@ -189,7 +189,7 @@ export default function EditPostPage() {
   }, [id, supabase]);
 
   return (
-    <AdminLayout>
+    <>
       <div
         className={`grid ${
           isCalendarVisible ? "lg:grid-cols-2" : "lg:grid-cols-1"
@@ -238,6 +238,6 @@ export default function EditPostPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

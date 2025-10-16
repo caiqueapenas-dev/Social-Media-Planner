@@ -206,7 +206,7 @@ export default function InsightsPage() {
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Insights & Ideias</h1>
@@ -463,6 +463,6 @@ export default function InsightsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
+    </>
   );
 }

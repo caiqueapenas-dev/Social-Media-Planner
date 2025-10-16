@@ -221,10 +221,10 @@ function CreatePostView() {
 
 export default function CreatePostPage() {
   return (
-    <AdminLayout>
+    <>
       <Suspense fallback={<div>Carregando...</div>}>
         <CreatePostView />
       </Suspense>
-    </AdminLayout>
+    </>
   );
 }
